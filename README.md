@@ -277,6 +277,19 @@ bash /www/wwwroot/downloadfrom.site/pre-deploy.sh
 bash /www/wwwroot/downloadfrom.site/deploy.sh
 ```
 
+7. On the server **once**, create `config/config.local.php` with your MySQL password.
+
+**If webhook fails with `storage/data/settings.json` would be overwritten:** SSH once:
+
+```bash
+cd /www/wwwroot/downloadfrom.site
+rm -f storage/data/*.json
+git reset --hard origin/main
+bash deploy.sh
+```
+
+Then add the **pre-deploy** script in aaPanel so future pulls never conflict.
+
 
 
 ### What the webhook updates vs. what it does not
