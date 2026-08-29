@@ -159,11 +159,13 @@ class AdManager
     public function savePlacementMap(array $map): bool
     {
         $clean = [];
-        foreach (array_keys(self::PLACEMENTS) as $placement) {
-            $adId = trim((string) ($map[$placement] ?? ''));
-            if ($adId !== '') {
-                $clean[$placement] = $adId;
+        foreach ($map as $key => $adId) {
+            $key = trim((string) $key);
+            $adId = trim((string) $adId);
+            if ($key === '' || $adId === '' || !self::isValidPlacementMapKey($key)) {
+                continue;
             }
+            $clean[$key] = $adId;
         }
         $this->data['placement_map'] = $clean;
         if (!$this->repo->savePlacementMap($clean)) {
@@ -187,15 +189,12 @@ class AdManager
             return [];
         }
 
-        foreach (self::placementAliases($placement) as $alias) {
-            $adId = trim((string) ($this->getPlacementMap()[$alias] ?? ''));
+        foreach (self::placementMapLookupKeys($placement, $serviceId) as $mapKey) {
+            $adId = trim((string) ($this->getPlacementMap()[$mapKey] ?? ''));
             if ($adId !== '') {
                 $ad = $this->getAd($adId);
                 if ($ad !== null && !empty($ad['enabled'])) {
-                    $pages = $ad['pages'] ?? ['all'];
-                    if ($this->pageMatches($pages, $pageType, $serviceId)) {
-                        return [$ad];
-                    }
+                    return [$ad];
                 }
             }
         }
@@ -619,55 +618,98 @@ class AdManager
         };
     }
 
-    /** @return array<string, array{title: string, description: string, zones: array<int, array{key: string, label: string, hint: string}>}> */
-    public static function placementMapPages(): array
+    /** @return array<string, array{title: string, description: string, layout: string, service_id?: string}> */
+    public static function placementMapPages(Settings $settings): array
     {
-        return [
+        $services = ServiceConfig::getServices($settings);
+        $pages = [
             'global' => [
                 'title' => 'All pages (global)',
-                'description' => 'Header and footer ads appear on every public page including home, platform, result, blog, and legal pages.',
-                'zones' => [
-                    ['key' => 'header_banner', 'label' => 'Ad 1', 'hint' => 'Below site header, above main content'],
-                    ['key' => 'footer_banner', 'label' => 'Ad 2', 'hint' => 'Above site footer on every page'],
-                    ['key' => 'popup', 'label' => 'Popup', 'hint' => 'Timed overlay on page load (not a fixed zone)'],
-                ],
+                'description' => 'Header, footer, and popup zones shared site-wide. Service-specific maps below override these on their pages when set.',
+                'layout' => 'global',
             ],
             'home' => [
                 'title' => 'Homepage',
                 'description' => 'Main landing page with the URL form and platform lists.',
-                'zones' => [
-                    ['key' => 'header_banner', 'label' => 'Ad 1', 'hint' => 'Header banner'],
-                    ['key' => 'home_hero_sidebar', 'label' => 'Ad 2', 'hint' => 'Right side of blue hero — next to title & URL form'],
-                    ['key' => 'home_after_form', 'label' => 'Ad 3', 'hint' => 'Below Generate Links button'],
-                    ['key' => 'home_middle', 'label' => 'Ad 4', 'hint' => 'Between How It Works and Supported Platforms'],
-                    ['key' => 'home_bottom', 'label' => 'Ad 5', 'hint' => 'After FAQ section'],
-                    ['key' => 'footer_banner', 'label' => 'Ad 6', 'hint' => 'Footer banner'],
-                ],
-            ],
-            'platform' => [
-                'title' => 'Platform page (e.g. YouTube, TikTok MP3)',
-                'description' => 'Individual provider landing pages with URL form and FAQ.',
-                'zones' => [
-                    ['key' => 'header_banner', 'label' => 'Ad 1', 'hint' => 'Header banner'],
-                    ['key' => 'platform_hero_sidebar', 'label' => 'Ad 2', 'hint' => 'Right side of hero next to form'],
-                    ['key' => 'platform_top', 'label' => 'Ad 3', 'hint' => 'Below URL form in hero'],
-                    ['key' => 'platform_bottom', 'label' => 'Ad 4', 'hint' => 'Before Other Platforms section'],
-                    ['key' => 'footer_banner', 'label' => 'Ad 5', 'hint' => 'Footer banner'],
-                ],
-            ],
-            'result' => [
-                'title' => 'Result / download page',
-                'description' => 'Shown after Generate Links — video and/or audio download options.',
-                'zones' => [
-                    ['key' => 'header_banner', 'label' => 'Ad 1', 'hint' => 'Header banner'],
-                    ['key' => 'result_top', 'label' => 'Ad 2', 'hint' => 'Top of result content'],
-                    ['key' => 'result_sidebar', 'label' => 'Ad 3', 'hint' => 'Right sidebar beside thumbnail & links'],
-                    ['key' => 'result_bottom', 'label' => 'Ad 4', 'hint' => 'Below download columns'],
-                    ['key' => 'download_modal', 'label' => 'Modal', 'hint' => 'When user clicks Download button'],
-                    ['key' => 'footer_banner', 'label' => 'Ad 5', 'hint' => 'Footer banner'],
-                ],
+                'layout' => 'home',
             ],
         ];
+
+        foreach ([ServiceConfig::SERVICE_VIDEO, ServiceConfig::SERVICE_AUDIO] as $serviceId) {
+            if (empty($services[$serviceId]['enabled'])) {
+                continue;
+            }
+
+            $label = (string) ($services[$serviceId]['name'] ?? $services[$serviceId]['nav_label'] ?? $serviceId);
+            $type = ServiceConfig::serviceType($serviceId);
+            $platformExample = $type === 'audio' ? 'SoundCloud, TikTok MP3' : 'TikTok, YouTube';
+            $resultLabel = $type === 'audio' ? 'Audio / MP3 links' : 'Video download links';
+
+            $pages['platform_' . $serviceId] = [
+                'title' => $label . ' — provider pages',
+                'description' => 'Individual ' . strtolower($label) . ' landing pages (e.g. ' . $platformExample . ') and the ' . strtolower($label) . ' hub page.',
+                'layout' => 'platform',
+                'service_id' => $serviceId,
+            ];
+            $pages['result_' . $serviceId] = [
+                'title' => $label . ' — result pages',
+                'description' => 'Shown after Generate Links for ' . strtolower($label) . ' URLs — ' . $resultLabel . '.',
+                'layout' => 'result',
+                'service_id' => $serviceId,
+                'result_links_label' => $resultLabel,
+            ];
+        }
+
+        return $pages;
+    }
+
+    public static function placementMapKey(string $placement, ?string $serviceId = null): string
+    {
+        if ($serviceId !== null && $serviceId !== '' && $serviceId !== ServiceConfig::SERVICE_ALL) {
+            return $placement . '@' . $serviceId;
+        }
+
+        return $placement;
+    }
+
+    /** @return array{placement: string, service_id: ?string} */
+    public static function parsePlacementMapKey(string $key): array
+    {
+        if (!str_contains($key, '@')) {
+            return ['placement' => $key, 'service_id' => null];
+        }
+
+        [$placement, $serviceId] = explode('@', $key, 2);
+
+        return ['placement' => $placement, 'service_id' => $serviceId !== '' ? $serviceId : null];
+    }
+
+    public static function isValidPlacementMapKey(string $key): bool
+    {
+        $parsed = self::parsePlacementMapKey($key);
+        if (!isset(self::PLACEMENTS[$parsed['placement']])) {
+            return false;
+        }
+
+        if ($parsed['service_id'] === null) {
+            return true;
+        }
+
+        return in_array($parsed['service_id'], [ServiceConfig::SERVICE_VIDEO, ServiceConfig::SERVICE_AUDIO], true);
+    }
+
+    /** @return string[] */
+    public static function placementMapLookupKeys(string $placement, ?string $serviceId = null): array
+    {
+        $keys = [];
+        foreach (self::placementAliases($placement) as $alias) {
+            if ($serviceId !== null && $serviceId !== '' && $serviceId !== ServiceConfig::SERVICE_ALL) {
+                $keys[] = self::placementMapKey($alias, $serviceId);
+            }
+            $keys[] = $alias;
+        }
+
+        return array_values(array_unique($keys));
     }
 
     /** Legacy placement aliases. @return string[] */
