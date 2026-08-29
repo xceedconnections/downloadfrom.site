@@ -265,13 +265,17 @@ To migrate existing JSON files from an older install, `setup-mysql.php` imports 
    - Payload URL: paste aaPanel webhook URL
    - Content type: `application/json`
    - Events: **Just the push event**
-5. **Post-deploy script** (important):
+5. **Pre-deploy script** (run before git pull — fixes merge conflicts on old JSON files):
+
+```bash
+bash /www/wwwroot/downloadfrom.site/pre-deploy.sh
+```
+
+6. **Post-deploy script**:
 
 ```bash
 bash /www/wwwroot/downloadfrom.site/deploy.sh
 ```
-
-6. On the server **once**, create `config/config.local.php` with your MySQL password (this file is **not** in git and will **not** be deleted on pull).
 
 
 
