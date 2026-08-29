@@ -46,10 +46,10 @@ class AdManager
 
     public const AD_TYPES = [
         'banner' => 'Image / Banner',
-        'text' => 'Text / HTML',
+        'text' => 'Text (rich text)',
+        'html' => 'HTML / Script (AdSense, etc.)',
         'video' => 'Video',
         'popup' => 'Popup content',
-        'network' => 'Ad network code',
     ];
 
     public const NETWORKS = [
@@ -144,11 +144,52 @@ class AdManager
         return $this->save($this->data);
     }
 
+    /** @return array<string, string> placement key => ad id */
+    public function getPlacementMap(): array
+    {
+        $map = $this->data['placement_map'] ?? [];
+        return is_array($map) ? $map : [];
+    }
+
+    /** @param array<string, string> $map */
+    public function savePlacementMap(array $map): bool
+    {
+        $clean = [];
+        foreach (array_keys(self::PLACEMENTS) as $placement) {
+            $adId = trim((string) ($map[$placement] ?? ''));
+            if ($adId !== '') {
+                $clean[$placement] = $adId;
+            }
+        }
+        $this->data['placement_map'] = $clean;
+        return $this->save($this->data);
+    }
+
+    public function saveGlobalSettings(bool $enabled, int $downloadModalCountdown): bool
+    {
+        $this->data['enabled'] = $enabled;
+        $this->data['download_modal_countdown'] = max(0, min(30, $downloadModalCountdown));
+        return $this->save($this->data);
+    }
+
     /** @return array<int, array> */
     public function getForPlacement(string $placement, string $pageType = 'all', ?string $serviceId = null): array
     {
         if (!$this->isEnabled()) {
             return [];
+        }
+
+        foreach (self::placementAliases($placement) as $alias) {
+            $adId = trim((string) ($this->getPlacementMap()[$alias] ?? ''));
+            if ($adId !== '') {
+                $ad = $this->getAd($adId);
+                if ($ad !== null && !empty($ad['enabled'])) {
+                    $pages = $ad['pages'] ?? ['all'];
+                    if ($this->pageMatches($pages, $pageType, $serviceId)) {
+                        return [$ad];
+                    }
+                }
+            }
         }
 
         $matches = [];
@@ -277,8 +318,9 @@ class AdManager
         return match ($type) {
             'banner' => $wrapStart . $this->renderBanner($content) . $wrapEnd,
             'text' => $wrapStart . $this->renderText($content) . $wrapEnd,
+            'html' => $wrapStart . $this->renderHtml($content) . $wrapEnd,
             'video' => $wrapStart . $this->renderVideo($content) . $wrapEnd,
-            'network' => $wrapStart . $this->renderNetwork($ad, $content) . $wrapEnd,
+            'network' => $wrapStart . $this->renderHtml($content) . $wrapEnd,
             'popup' => $this->renderPopupUnit($ad, $content),
             default => '',
         };
@@ -337,6 +379,19 @@ class AdManager
         }
 
         return '<div class="ad-text">' . $inner . '</div>';
+    }
+
+    private function renderHtml(array $content): string
+    {
+        $code = trim((string) ($content['html'] ?? ''));
+        if ($code === '') {
+            $code = trim((string) ($content['network_code'] ?? ''));
+        }
+        if ($code === '') {
+            return '';
+        }
+
+        return '<div class="ad-html">' . $code . '</div>';
     }
 
     private function renderVideo(array $content): string
@@ -455,9 +510,10 @@ class AdManager
         return match ($type) {
             'banner' => $this->renderBanner($content),
             'text' => $this->renderText($content),
+            'html' => $this->renderHtml($content),
             'video' => $this->renderVideo($content),
-            'network' => $this->renderNetwork($ad, $content),
-            'popup' => $this->renderText($content) ?: $this->renderBanner($content),
+            'network' => $this->renderHtml($content),
+            'popup' => $this->renderHtml($content) ?: $this->renderText($content) ?: $this->renderBanner($content),
             default => '',
         };
     }
@@ -475,7 +531,7 @@ class AdManager
             'enabled' => false,
             'download_modal_countdown' => 5,
             'updated' => time(),
-            'network_settings' => self::defaultNetworkSettings(),
+            'placement_map' => [],
             'ads' => [],
         ];
     }

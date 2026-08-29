@@ -522,3 +522,20 @@
     border-radius: 4px;
     font-size: .6875rem;
 }
+
+.ad-map-assign-table select {
+    width: 100%;
+    max-width: 420px;
+}
+
+.ad-map-assign-table td,
+.ad-map-assign-table th {
+    vertical-align: middle;
+}
+
+.ad-code-textarea {
+    width: 100%;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: .8125rem;
+    line-height: 1.45;
+}
