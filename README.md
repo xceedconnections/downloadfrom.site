@@ -253,6 +253,44 @@ To migrate existing JSON files from an older install, `setup-mysql.php` imports 
 
 
 
+## aaPanel Git Webhook (auto-deploy)
+
+
+
+1. **aaPanel** → Website → `downloadfrom.site` → **Git**
+2. Repository: `https://github.com/xceedconnections/downloadfrom.site`
+3. Branch: `main`
+4. Enable **Webhook** and copy the webhook URL into GitHub:
+   - GitHub repo → **Settings** → **Webhooks** → Add webhook
+   - Payload URL: paste aaPanel webhook URL
+   - Content type: `application/json`
+   - Events: **Just the push event**
+5. **Post-deploy script** (important):
+
+```bash
+bash /www/wwwroot/downloadfrom.site/deploy.sh
+```
+
+6. On the server **once**, create `config/config.local.php` with your MySQL password (this file is **not** in git and will **not** be deleted on pull).
+
+
+
+### What the webhook updates vs. what it does not
+
+
+
+| Updated on each `git pull` | **Not** touched by webhook |
+|----------------------------|----------------------------|
+| PHP templates, app code, CSS, JS | `config/config.local.php` (DB password, yt-dlp paths) |
+| `database/seeds/` (defaults only) | MySQL data (settings, ads, admin, FAQ) |
+| `deploy.sh` | Uploaded logos in `assets/uploads/` |
+
+
+
+After you push to GitHub, aaPanel pulls within a few seconds. Admin changes in the panel stay in MySQL.
+
+
+
 ## Production Checklist
 
 
