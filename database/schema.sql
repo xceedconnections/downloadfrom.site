@@ -92,6 +92,8 @@ CREATE TABLE IF NOT EXISTS ads (
     popup_delay_seconds INT NOT NULL DEFAULT 3,
     popup_show_once TINYINT(1) NOT NULL DEFAULT 0,
     popup_closable TINYINT(1) NOT NULL DEFAULT 1,
+    popup_display VARCHAR(16) NOT NULL DEFAULT 'modal',
+    popup_content_mode VARCHAR(16) NOT NULL DEFAULT 'html',
     updated_at INT UNSIGNED NOT NULL DEFAULT 0,
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -113,7 +115,9 @@ CREATE TABLE IF NOT EXISTS ad_pages (
 CREATE TABLE IF NOT EXISTS ad_zone_assignments (
     placement VARCHAR(128) NOT NULL,
     ad_id VARCHAR(32) NOT NULL,
-    PRIMARY KEY (placement),
+    sort_order INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (placement, ad_id),
+    KEY idx_zone_placement_order (placement, sort_order),
     CONSTRAINT fk_ad_zone_assignments_ad FOREIGN KEY (ad_id) REFERENCES ads (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

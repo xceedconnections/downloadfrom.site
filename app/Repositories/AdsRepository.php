@@ -104,8 +104,8 @@ final class AdsRepository
                 (id, name, enabled, source, type, network, priority,
                  content_title, content_text, content_html, content_image_url, content_video_url, content_link_url, content_alt,
                  content_client_id, content_slot_id, content_network_code, content_width, content_height,
-                 popup_delay_seconds, popup_show_once, popup_closable, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 popup_delay_seconds, popup_show_once, popup_closable, popup_display, popup_content_mode, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                  name = VALUES(name), enabled = VALUES(enabled), source = VALUES(source), type = VALUES(type),
                  network = VALUES(network), priority = VALUES(priority),
@@ -115,7 +115,9 @@ final class AdsRepository
                  content_client_id = VALUES(content_client_id), content_slot_id = VALUES(content_slot_id),
                  content_network_code = VALUES(content_network_code), content_width = VALUES(content_width),
                  content_height = VALUES(content_height), popup_delay_seconds = VALUES(popup_delay_seconds),
-                 popup_show_once = VALUES(popup_show_once), popup_closable = VALUES(popup_closable), updated_at = VALUES(updated_at)'
+                 popup_show_once = VALUES(popup_show_once), popup_closable = VALUES(popup_closable),
+                 popup_display = VALUES(popup_display), popup_content_mode = VALUES(popup_content_mode),
+                 updated_at = VALUES(updated_at)'
             );
             $stmt->execute([
                 $id,
@@ -140,6 +142,8 @@ final class AdsRepository
                 (int) ($popup['delay_seconds'] ?? 3),
                 !empty($popup['show_once_per_session']) ? 1 : 0,
                 !isset($popup['closable']) || $popup['closable'] ? 1 : 0,
+                in_array((string) ($popup['display'] ?? 'modal'), ['window', 'modal'], true) ? (string) $popup['display'] : 'modal',
+                (string) ($popup['content_mode'] ?? 'html'),
                 (int) ($ad['updated'] ?? time()),
             ]);
 
@@ -178,7 +182,7 @@ final class AdsRepository
         return $stmt->execute([$id]);
     }
 
-    /** @param array<string, string> $map */
+    /** @param array<string, array<int, string>|string> $map */
     public function savePlacementMap(array $map): bool
     {
         try {
@@ -187,11 +191,23 @@ final class AdsRepository
                 $this->pdo->beginTransaction();
             }
             $this->pdo->exec('DELETE FROM ad_zone_assignments');
-            $stmt = $this->pdo->prepare('INSERT INTO ad_zone_assignments (placement, ad_id) VALUES (?, ?)');
-            foreach ($map as $placement => $adId) {
-                $adId = trim((string) $adId);
-                if ($placement !== '' && $adId !== '') {
-                    $stmt->execute([(string) $placement, $adId]);
+            $stmt = $this->pdo->prepare(
+                'INSERT INTO ad_zone_assignments (placement, ad_id, sort_order) VALUES (?, ?, ?)'
+            );
+            foreach ($map as $placement => $adIds) {
+                $placement = trim((string) $placement);
+                if ($placement === '') {
+                    continue;
+                }
+                $ids = is_array($adIds) ? $adIds : [trim((string) $adIds)];
+                $order = 0;
+                foreach ($ids as $adId) {
+                    $adId = trim((string) $adId);
+                    if ($adId === '') {
+                        continue;
+                    }
+                    $stmt->execute([$placement, $adId, $order]);
+                    $order++;
                 }
             }
             if ($ownsTransaction) {
@@ -234,13 +250,20 @@ final class AdsRepository
         $this->savePlacementMap($merged['placement_map'] ?? []);
     }
 
-    /** @return array<string, string> */
+    /** @return array<string, array<int, string>> */
     private function loadPlacementMap(): array
     {
         $map = [];
-        $stmt = $this->pdo->query('SELECT placement, ad_id FROM ad_zone_assignments');
+        $stmt = $this->pdo->query(
+            'SELECT placement, ad_id FROM ad_zone_assignments ORDER BY placement ASC, sort_order ASC, ad_id ASC'
+        );
         foreach ($stmt ? $stmt->fetchAll() : [] as $row) {
-            $map[(string) ($row['placement'] ?? '')] = (string) ($row['ad_id'] ?? '');
+            $placement = (string) ($row['placement'] ?? '');
+            $adId = (string) ($row['ad_id'] ?? '');
+            if ($placement === '' || $adId === '') {
+                continue;
+            }
+            $map[$placement][] = $adId;
         }
 
         return $map;
@@ -293,6 +316,8 @@ final class AdsRepository
                 'delay_seconds' => (int) ($row['popup_delay_seconds'] ?? 3),
                 'show_once_per_session' => (bool) ($row['popup_show_once'] ?? false),
                 'closable' => (bool) ($row['popup_closable'] ?? true),
+                'display' => (string) ($row['popup_display'] ?? 'modal'),
+                'content_mode' => (string) ($row['popup_content_mode'] ?? 'html'),
             ],
             'updated' => (int) ($row['updated_at'] ?? 0),
         ];

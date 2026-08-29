@@ -148,24 +148,54 @@ class AdManager
         return true;
     }
 
-    /** @return array<string, string> placement key => ad id */
+    /** @return array<string, array<int, string>> placement key => ad ids */
     public function getPlacementMap(): array
     {
         $map = $this->data['placement_map'] ?? [];
-        return is_array($map) ? $map : [];
+        if (!is_array($map)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($map as $key => $value) {
+            $key = trim((string) $key);
+            if ($key === '') {
+                continue;
+            }
+            if (is_array($value)) {
+                $ids = array_values(array_filter(array_map(static fn($id): string => trim((string) $id), $value)));
+            } else {
+                $single = trim((string) $value);
+                $ids = $single !== '' ? [$single] : [];
+            }
+            if ($ids !== []) {
+                $normalized[$key] = $ids;
+            }
+        }
+
+        return $normalized;
     }
 
-    /** @param array<string, string> $map */
+    /** @param array<string, array<int, string>|string> $map */
     public function savePlacementMap(array $map): bool
     {
         $clean = [];
-        foreach ($map as $key => $adId) {
+        foreach ($map as $key => $adIds) {
             $key = trim((string) $key);
-            $adId = trim((string) $adId);
-            if ($key === '' || $adId === '' || !self::isValidPlacementMapKey($key)) {
+            if ($key === '' || !self::isValidPlacementMapKey($key)) {
                 continue;
             }
-            $clean[$key] = $adId;
+            $ids = is_array($adIds) ? $adIds : [trim((string) $adIds)];
+            $normalized = [];
+            foreach ($ids as $adId) {
+                $adId = trim((string) $adId);
+                if ($adId !== '' && !in_array($adId, $normalized, true)) {
+                    $normalized[] = $adId;
+                }
+            }
+            if ($normalized !== []) {
+                $clean[$key] = $normalized;
+            }
         }
         $this->data['placement_map'] = $clean;
         if (!$this->repo->savePlacementMap($clean)) {
@@ -190,13 +220,20 @@ class AdManager
         }
 
         foreach (self::placementMapLookupKeys($placement, $serviceId, $providerId) as $mapKey) {
-            $adId = trim((string) ($this->getPlacementMap()[$mapKey] ?? ''));
-            if ($adId !== '') {
-                $ad = $this->getAd($adId);
-                if ($ad !== null && !empty($ad['enabled'])) {
-                    return [$ad];
-                }
+            $adIds = $this->getPlacementMap()[$mapKey] ?? [];
+            if ($adIds === []) {
+                continue;
             }
+            $ads = $this->resolveEnabledAds($adIds);
+            if ($ads === []) {
+                continue;
+            }
+
+            if ($placement === 'popup') {
+                return $ads;
+            }
+
+            return [$this->pickRotatedAd($ads, $mapKey)];
         }
 
         $matches = [];
@@ -224,7 +261,59 @@ class AdManager
 
         usort($matches, static fn(array $a, array $b): int => ($b['priority'] ?? 0) <=> ($a['priority'] ?? 0));
 
-        return $matches;
+        if ($matches === []) {
+            return [];
+        }
+
+        if ($placement === 'popup') {
+            return $matches;
+        }
+
+        return [$this->pickRotatedAd($matches, self::placementMapKey($placement, $serviceId, $providerId))];
+    }
+
+    /** @param array<int, string> $adIds @return array<int, array> */
+    private function resolveEnabledAds(array $adIds): array
+    {
+        $ads = [];
+        foreach ($adIds as $adId) {
+            $ad = $this->getAd($adId);
+            if ($ad !== null && !empty($ad['enabled'])) {
+                $ads[] = $ad;
+            }
+        }
+
+        return $ads;
+    }
+
+    /** @param array<int, array> $ads */
+    private function pickRotatedAd(array $ads, string $rotationKey): array
+    {
+        if ($ads === []) {
+            return [];
+        }
+        if (count($ads) === 1) {
+            return $ads[0];
+        }
+
+        $weights = [];
+        $total = 0;
+        foreach ($ads as $index => $ad) {
+            $weight = max(1, (int) ($ad['priority'] ?? 0) + 1);
+            $weights[$index] = $weight;
+            $total += $weight;
+        }
+
+        $pick = random_int(0, max(0, $total - 1));
+        $running = 0;
+        foreach ($weights as $index => $weight) {
+            $running += $weight;
+            if ($pick < $running) {
+                return $ads[$index];
+            }
+        }
+
+        return $ads[array_key_last($ads)];
     }
 
     /** @param string[] $adPages */
@@ -498,37 +587,70 @@ class AdManager
         $items = [];
         foreach ($this->getPopupAds($serviceId, $providerId) as $ad) {
             $popup = $ad['popup'] ?? [];
-            $html = $this->renderPopupContent($ad);
-            if ($html === '') {
-                continue;
-            }
             $content = is_array($ad['content'] ?? null) ? $ad['content'] : [];
-            $link = trim((string) ($content['link_url'] ?? ''));
-            $items[] = [
+            $display = (string) ($popup['display'] ?? 'modal');
+            $base = [
                 'id' => $ad['id'],
                 'delay' => (int) ($popup['delay_seconds'] ?? 3),
                 'once' => !empty($popup['show_once_per_session']),
-                'closable' => !isset($popup['closable']) || $popup['closable'],
-                'html' => $html,
-                'iframe' => $link !== '' && trim((string) ($content['html'] ?? '')) === '',
             ];
+
+            if ($display === 'window') {
+                $url = trim((string) ($content['link_url'] ?? ''));
+                if ($url === '' || !preg_match('#^https?://#i', $url)) {
+                    continue;
+                }
+                $items[] = array_merge($base, [
+                    'style' => 'window',
+                    'url' => $url,
+                ]);
+                continue;
+            }
+
+            $html = $this->renderModalPopupContent($ad);
+            if ($html === '') {
+                continue;
+            }
+
+            $link = trim((string) ($content['link_url'] ?? ''));
+            $mode = (string) ($popup['content_mode'] ?? 'html');
+            $items[] = array_merge($base, [
+                'style' => 'modal',
+                'html' => $html,
+                'closable' => !isset($popup['closable']) || $popup['closable'],
+                'iframe' => $mode === 'iframe' && $link !== '',
+            ]);
         }
+
         return $items;
     }
 
     /** @param array<string, mixed> $ad */
-    private function renderPopupContent(array $ad): string
+    private function renderModalPopupContent(array $ad): string
     {
-        $type = (string) ($ad['type'] ?? 'popup');
+        $popup = is_array($ad['popup'] ?? null) ? $ad['popup'] : [];
+        $mode = (string) ($popup['content_mode'] ?? 'html');
         $content = is_array($ad['content'] ?? null) ? $ad['content'] : [];
 
-        if ($type !== 'popup') {
-            return $this->renderAdInner($ad);
+        if ($mode === 'iframe') {
+            $link = trim((string) ($content['link_url'] ?? ''));
+            return $link !== '' && preg_match('#^https?://#i', $link) ? $this->renderPopupIframe($link, $content) : '';
         }
 
-        $html = trim((string) ($content['html'] ?? ''));
-        $title = trim((string) ($content['title'] ?? ''));
-        if ($html !== '' || $title !== '') {
+        if ($mode === 'image') {
+            return $this->renderBanner($content);
+        }
+
+        if ($mode === 'video') {
+            return $this->renderVideo($content);
+        }
+
+        if ($mode === 'text') {
+            $html = trim((string) ($content['html'] ?? ''));
+            $title = trim((string) ($content['title'] ?? ''));
+            if ($html === '' && $title === '') {
+                return '';
+            }
             $inner = $html !== '' ? $this->renderHtml($content) : '';
             if ($title !== '') {
                 $inner = '<strong class="ad-text-title">' . Security::escape($title) . '</strong>' . $inner;
@@ -540,12 +662,19 @@ class AdManager
             return '<div class="ad-popup-text">' . $inner . '</div>';
         }
 
-        $link = trim((string) ($content['link_url'] ?? ''));
-        if ($link !== '' && preg_match('#^https?://#i', $link)) {
-            return $this->renderPopupIframe($link, $content);
+        $html = trim((string) ($content['html'] ?? ''));
+        return $html !== '' ? $this->renderHtml($content) : '';
+    }
+
+    /** @param array<string, mixed> $ad */
+    private function renderPopupContent(array $ad): string
+    {
+        $popup = is_array($ad['popup'] ?? null) ? $ad['popup'] : [];
+        if (($popup['display'] ?? 'modal') === 'window') {
+            return '';
         }
 
-        return $this->renderBanner($content);
+        return $this->renderModalPopupContent($ad);
     }
 
     /** @param array<string, mixed> $content */
@@ -573,7 +702,7 @@ class AdManager
             'html' => $this->renderHtml($content),
             'video' => $this->renderVideo($content),
             'network' => $this->renderHtml($content),
-            'popup' => $this->renderPopupContent($ad),
+            'popup' => $this->renderModalPopupContent($ad),
             default => '',
         };
     }

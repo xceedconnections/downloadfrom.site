@@ -38,9 +38,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = trim($_POST['ad_id'] ?? '');
         if ($id !== '' && $adManager->deleteAd($id)) {
             $map = $adManager->getPlacementMap();
-            foreach ($map as $place => $mappedId) {
-                if ($mappedId === $id) {
+            foreach ($map as $place => $mappedIds) {
+                $filtered = array_values(array_filter($mappedIds, static fn(string $mappedId): bool => $mappedId !== $id));
+                if ($filtered === []) {
                     unset($map[$place]);
+                } else {
+                    $map[$place] = $filtered;
                 }
             }
             $adManager->savePlacementMap($map);
@@ -89,19 +92,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $popupLink = trim($_POST['popup_link_url'] ?? '');
 
         if ($type === 'popup') {
+            $popupDisplay = in_array((string) ($_POST['popup_display'] ?? ''), ['window', 'modal'], true)
+                ? (string) $_POST['popup_display']
+                : 'modal';
             $popupMode = (string) ($_POST['popup_mode'] ?? 'html');
-            $contentHtml = $popupMode === 'html'
-                ? ($popupHtml !== '' ? $popupHtml : (string) ($existingContent['html'] ?? ''))
-                : ($popupMode === 'text'
-                    ? ($popupText !== '' ? Security::sanitizeAdminHtml($popupText) : (string) ($existingContent['html'] ?? ''))
-                    : '');
-            $contentText = '';
-            $contentTitle = $popupMode === 'text' ? $popupTitle : '';
-            $contentLink = $popupMode === 'link'
-                ? ($popupLink !== '' ? $popupLink : (string) ($existingContent['link_url'] ?? ''))
-                : ($popupMode === 'text' ? trim($_POST['popup_text_link'] ?? '') : '');
-            $contentWidth = max(200, (int) ($_POST['popup_iframe_width'] ?? ($existingContent['width'] ?? 600)));
-            $contentHeight = max(150, (int) ($_POST['popup_iframe_height'] ?? ($existingContent['height'] ?? 420)));
+            if ($popupMode === 'link') {
+                $popupMode = 'iframe';
+            }
+
+            if ($popupDisplay === 'window') {
+                $contentHtml = '';
+                $contentText = '';
+                $contentTitle = '';
+                $contentLink = trim($_POST['popup_window_url'] ?? '');
+                if ($contentLink === '') {
+                    $contentLink = (string) ($existingContent['link_url'] ?? '');
+                }
+                $contentWidth = (int) ($existingContent['width'] ?? 600);
+                $contentHeight = (int) ($existingContent['height'] ?? 420);
+                $popupMode = 'link';
+            } elseif ($popupMode === 'html') {
+                $contentHtml = $popupHtml !== '' ? $popupHtml : (string) ($existingContent['html'] ?? '');
+                $contentText = '';
+                $contentTitle = '';
+                $contentLink = '';
+                $contentWidth = max(200, (int) ($existingContent['width'] ?? 600));
+                $contentHeight = max(150, (int) ($existingContent['height'] ?? 420));
+            } elseif ($popupMode === 'iframe') {
+                $contentHtml = '';
+                $contentText = '';
+                $contentTitle = '';
+                $contentLink = $popupLink !== '' ? $popupLink : (string) ($existingContent['link_url'] ?? '');
+                $contentWidth = max(200, (int) ($_POST['popup_iframe_width'] ?? ($existingContent['width'] ?? 600)));
+                $contentHeight = max(150, (int) ($_POST['popup_iframe_height'] ?? ($existingContent['height'] ?? 420)));
+            } elseif ($popupMode === 'text') {
+                $contentHtml = $popupText !== '' ? Security::sanitizeAdminHtml($popupText) : (string) ($existingContent['html'] ?? '');
+                $contentText = '';
+                $contentTitle = $popupTitle;
+                $contentLink = trim($_POST['popup_text_link'] ?? '');
+                $contentWidth = max(200, (int) ($existingContent['width'] ?? 600));
+                $contentHeight = max(150, (int) ($existingContent['height'] ?? 420));
+            } elseif ($popupMode === 'image') {
+                $contentHtml = '';
+                $contentText = '';
+                $contentTitle = '';
+                $contentLink = trim($_POST['popup_image_link'] ?? '');
+                $popupImageUrl = trim($_POST['popup_image_url'] ?? '');
+                if ($popupImageUrl === '') {
+                    $popupImageUrl = (string) ($existingContent['image_url'] ?? '');
+                }
+                if (!empty($_FILES['popup_image_upload']['tmp_name'])) {
+                    $upload = UploadHelper::storeAdImage($_FILES['popup_image_upload'], $projectRoot);
+                    if ($upload['success']) {
+                        $popupImageUrl = $upload['path'];
+                    } elseif ($error === '') {
+                        $error = 'Popup image upload failed. Use JPG, PNG, GIF, or WebP under 5 MB.';
+                    }
+                }
+                $imageUrl = $popupImageUrl;
+                $imageAlt = trim($_POST['popup_image_alt'] ?? 'Advertisement');
+                $contentWidth = max(200, (int) ($existingContent['width'] ?? 600));
+                $contentHeight = max(150, (int) ($existingContent['height'] ?? 420));
+            } elseif ($popupMode === 'video') {
+                $contentHtml = '';
+                $contentText = '';
+                $contentTitle = '';
+                $contentLink = '';
+                $popupVideoUrl = trim($_POST['popup_video_url'] ?? '');
+                if ($popupVideoUrl === '') {
+                    $popupVideoUrl = (string) ($existingContent['video_url'] ?? '');
+                }
+                if (!empty($_FILES['popup_video_upload']['tmp_name'])) {
+                    $upload = UploadHelper::storeAdVideo($_FILES['popup_video_upload'], $projectRoot);
+                    if ($upload['success']) {
+                        $popupVideoUrl = $upload['path'];
+                    } elseif ($error === '') {
+                        $error = 'Popup video upload failed. Use MP4 or WebM under 50 MB.';
+                    }
+                }
+                $videoUrl = $popupVideoUrl;
+                $contentWidth = max(200, (int) ($existingContent['width'] ?? 600));
+                $contentHeight = max(150, (int) ($existingContent['height'] ?? 420));
+            } else {
+                $contentHtml = $popupHtml !== '' ? $popupHtml : (string) ($existingContent['html'] ?? '');
+                $contentText = '';
+                $contentTitle = '';
+                $contentLink = '';
+                $contentWidth = max(200, (int) ($existingContent['width'] ?? 600));
+                $contentHeight = max(150, (int) ($existingContent['height'] ?? 420));
+                $popupMode = 'html';
+            }
         } elseif (in_array($type, ['html', 'network'], true)) {
             $contentHtml = $rawHtml !== '' ? $rawHtml : (string) ($existingContent['html'] ?? $existingContent['network_code'] ?? '');
             $contentText = '';
@@ -125,6 +205,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $contentHeight = max(1, (int) ($_POST['ad_height'] ?? 90));
         }
 
+        $existingPopup = is_array($existingAd['popup'] ?? null) ? $existingAd['popup'] : [
+            'delay_seconds' => 3,
+            'show_once_per_session' => false,
+            'closable' => true,
+            'display' => 'modal',
+            'content_mode' => 'html',
+        ];
+
         $ad = [
             'id' => $id,
             'name' => trim($_POST['name'] ?? 'Untitled Ad'),
@@ -141,15 +229,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'image_url' => $imageUrl,
                 'video_url' => $videoUrl,
                 'link_url' => $contentLink,
-                'alt' => trim($_POST['image_alt'] ?? 'Advertisement'),
+                'alt' => trim($_POST['popup_image_alt'] ?? ($_POST['image_alt'] ?? ($existingContent['alt'] ?? 'Advertisement'))),
                 'width' => $contentWidth,
                 'height' => $contentHeight,
             ],
-            'popup' => [
+            'popup' => $type === 'popup' ? [
                 'delay_seconds' => max(0, min(60, (int) ($_POST['popup_delay'] ?? 3))),
                 'show_once_per_session' => isset($_POST['popup_once']),
                 'closable' => isset($_POST['popup_closable']),
-            ],
+                'display' => in_array((string) ($_POST['popup_display'] ?? ''), ['window', 'modal'], true)
+                    ? (string) $_POST['popup_display']
+                    : 'modal',
+                'content_mode' => (string) ($popupMode ?? 'html'),
+            ] : $existingPopup,
             'updated' => time(),
         ];
 
@@ -198,7 +290,7 @@ require __DIR__ . '/layout/header.php';
 $a = $editAd ?? [
     'name' => '', 'enabled' => true, 'type' => 'html',
     'placements' => [], 'pages' => ['all'], 'priority' => 0,
-    'content' => [], 'popup' => ['delay_seconds' => 3, 'show_once_per_session' => false, 'closable' => true],
+    'content' => [], 'popup' => ['delay_seconds' => 3, 'show_once_per_session' => false, 'closable' => true, 'display' => 'modal', 'content_mode' => 'html'],
 ];
 $c = $a['content'] ?? [];
 $p = $a['popup'] ?? [];
@@ -206,19 +298,13 @@ $adType = (string) ($a['type'] ?? 'html');
 if ($adType === 'network') {
     $adType = 'html';
 }
-$popupMode = 'html';
-if ($adType === 'popup') {
-    $popupHtml = trim((string) ($c['html'] ?? ''));
-    $popupLink = trim((string) ($c['link_url'] ?? ''));
-    $popupText = trim((string) ($c['text'] ?? ''));
-    $popupTitle = trim((string) ($c['title'] ?? ''));
-    if ($popupHtml !== '') {
-        $popupMode = 'html';
-    } elseif ($popupLink !== '') {
-        $popupMode = 'link';
-    } elseif ($popupTitle !== '') {
-        $popupMode = 'text';
-    }
+$popupDisplay = (string) ($p['display'] ?? 'modal');
+$popupMode = (string) ($p['content_mode'] ?? 'html');
+if ($popupMode === 'link') {
+    $popupMode = 'iframe';
+}
+if ($adType === 'popup' && $popupDisplay === 'window') {
+    $popupMode = 'link';
 }
 $mediaPreview = static function (string $path): string {
     if ($path === '') {
@@ -305,13 +391,38 @@ $mediaPreview = static function (string $path): string {
         </fieldset>
 
         <fieldset class="admin-fieldset ad-fields-popup ad-fields-type">
-            <legend>Popup content</legend>
-            <p class="admin-note">Choose one content type below. After saving, assign this ad to the <strong>Popup</strong> zone in <a href="ads.php?tab=map">Placement Map → Global</a>.</p>
+            <legend>Popup type</legend>
+            <p class="admin-note">After saving, assign this ad to the <strong>Popup</strong> zone in <a href="ads.php?tab=map">Placement Map → Global</a>.</p>
+
+            <div class="popup-display-tabs">
+                <label class="popup-display-tab">
+                    <input type="radio" name="popup_display" value="window" <?= $popupDisplay === 'window' ? 'checked' : '' ?>>
+                    <strong>New window</strong> — opens a link in a new browser tab/window
+                </label>
+                <label class="popup-display-tab">
+                    <input type="radio" name="popup_display" value="modal" <?= $popupDisplay !== 'window' ? 'checked' : '' ?>>
+                    <strong>On-page modal</strong> — centered overlay with X close button
+                </label>
+            </div>
+        </fieldset>
+
+        <fieldset class="admin-fieldset ad-fields-popup ad-fields-type popup-fields-window">
+            <legend>New window link</legend>
+            <label>Destination URL
+                <input type="url" name="popup_window_url" value="<?= Security::escape($c['link_url'] ?? '') ?>" placeholder="https://example.com/offer">
+            </label>
+            <p class="admin-field-hint">Only a link URL is supported for this popup type.</p>
+        </fieldset>
+
+        <fieldset class="admin-fieldset ad-fields-popup ad-fields-type popup-fields-modal">
+            <legend>Modal content</legend>
 
             <div class="popup-mode-tabs">
                 <label class="popup-mode-tab"><input type="radio" name="popup_mode" value="html" <?= $popupMode === 'html' ? 'checked' : '' ?>> HTML / Script</label>
-                <label class="popup-mode-tab"><input type="radio" name="popup_mode" value="link" <?= $popupMode === 'link' ? 'checked' : '' ?>> URL (iframe)</label>
+                <label class="popup-mode-tab"><input type="radio" name="popup_mode" value="iframe" <?= $popupMode === 'iframe' ? 'checked' : '' ?>> URL (iframe)</label>
                 <label class="popup-mode-tab"><input type="radio" name="popup_mode" value="text" <?= $popupMode === 'text' ? 'checked' : '' ?>> Text</label>
+                <label class="popup-mode-tab"><input type="radio" name="popup_mode" value="image" <?= $popupMode === 'image' ? 'checked' : '' ?>> Image</label>
+                <label class="popup-mode-tab"><input type="radio" name="popup_mode" value="video" <?= $popupMode === 'video' ? 'checked' : '' ?>> Video</label>
             </div>
 
             <div class="popup-mode-panel popup-mode-html">
@@ -320,7 +431,7 @@ $mediaPreview = static function (string $path): string {
                 </label>
             </div>
 
-            <div class="popup-mode-panel popup-mode-link">
+            <div class="popup-mode-panel popup-mode-iframe">
                 <label>Page URL to embed in iframe
                     <input type="url" name="popup_link_url" value="<?= Security::escape($c['link_url'] ?? '') ?>" placeholder="https://example.com/landing-page">
                 </label>
@@ -328,22 +439,57 @@ $mediaPreview = static function (string $path): string {
                     <label>Iframe width (px) <input type="number" name="popup_iframe_width" min="280" max="1200" value="<?= (int) ($c['width'] ?? 600) ?>"></label>
                     <label>Iframe height (px) <input type="number" name="popup_iframe_height" min="200" max="900" value="<?= (int) ($c['height'] ?? 420) ?>"></label>
                 </div>
-                <p class="admin-field-hint">Some websites block iframe embedding. If the page stays blank, use HTML mode or link to the page instead.</p>
+                <p class="admin-field-hint">Some websites block iframe embedding. If the page stays blank, use HTML mode instead.</p>
             </div>
 
             <div class="popup-mode-panel popup-mode-text">
                 <label>Title <input type="text" name="popup_title" value="<?= Security::escape($c['title'] ?? '') ?>"></label>
                 <label>Message
-                    <textarea name="popup_text" class="wysiwyg" id="ad-popup-text" rows="6"><?= Security::escape($c['text'] ?? '') ?></textarea>
+                    <textarea name="popup_text" class="wysiwyg" id="ad-popup-text" rows="6"><?= Security::escape($c['html'] ?? ($c['text'] ?? '')) ?></textarea>
                 </label>
                 <label>Optional link URL <input type="url" name="popup_text_link" value="<?= Security::escape($popupMode === 'text' ? ($c['link_url'] ?? '') : '') ?>" placeholder="https://…"></label>
             </div>
+
+            <div class="popup-mode-panel popup-mode-image">
+                <?php if (!empty($c['image_url'])): ?>
+                <div class="admin-media-preview">
+                    <span class="admin-field-hint">Current image:</span><br>
+                    <img src="<?= Security::escape($mediaPreview((string) $c['image_url'])) ?>" alt="Current popup image preview">
+                </div>
+                <?php endif; ?>
+                <label class="admin-upload-field">Upload image
+                    <input type="file" name="popup_image_upload" accept="image/png,image/jpeg,image/gif,image/webp">
+                </label>
+                <label>Or image URL <input type="text" name="popup_image_url" value="<?= Security::escape($c['image_url'] ?? '') ?>"></label>
+                <label>Click URL (optional) <input type="url" name="popup_image_link" value="<?= Security::escape($c['link_url'] ?? '') ?>"></label>
+                <label>Alt text <input type="text" name="popup_image_alt" value="<?= Security::escape($c['alt'] ?? 'Advertisement') ?>"></label>
+            </div>
+
+            <div class="popup-mode-panel popup-mode-video">
+                <?php
+                $popupVideo = (string) ($c['video_url'] ?? '');
+                $popupVideoPreview = $popupVideo !== '' && !preg_match('#(?:youtube\.com/watch\?v=|youtu\.be/)#', $popupVideo) ? $mediaPreview($popupVideo) : '';
+                ?>
+                <?php if ($popupVideoPreview !== ''): ?>
+                <div class="admin-media-preview">
+                    <video src="<?= Security::escape($popupVideoPreview) ?>" controls preload="metadata"></video>
+                </div>
+                <?php endif; ?>
+                <label class="admin-upload-field">Upload video
+                    <input type="file" name="popup_video_upload" accept="video/mp4,video/webm">
+                </label>
+                <label>Or video / YouTube URL <input type="text" name="popup_video_url" value="<?= Security::escape($popupVideo) ?>"></label>
+            </div>
+        </fieldset>
+
+        <fieldset class="admin-fieldset ad-fields-popup ad-fields-type popup-fields-modal">
+            <legend>Modal options</legend>
+            <label class="checkbox"><input type="checkbox" name="popup_closable" <?= !isset($p['closable']) || $p['closable'] ? 'checked' : '' ?>> Show close (X) button</label>
         </fieldset>
 
         <fieldset class="admin-fieldset ad-fields-popup ad-fields-type">
             <legend>Popup timing</legend>
             <label>Delay (seconds) <input type="number" name="popup_delay" min="0" max="60" value="<?= (int) ($p['delay_seconds'] ?? 3) ?>"></label>
-            <label class="checkbox"><input type="checkbox" name="popup_closable" <?= !isset($p['closable']) || $p['closable'] ? 'checked' : '' ?>> Show close button</label>
             <label class="checkbox"><input type="checkbox" name="popup_once" <?= !empty($p['show_once_per_session']) ? 'checked' : '' ?>> Show once per browser session</label>
         </fieldset>
 
@@ -366,8 +512,19 @@ $mediaPreview = static function (string $path): string {
         if (textField) textField.disabled = (t !== 'text');
         if (t === 'popup') {
             document.querySelectorAll('.ad-fields-popup').forEach(function (el) { el.style.display = 'block'; });
+            togglePopupDisplay();
             togglePopupMode();
         }
+    }
+    function togglePopupDisplay() {
+        var display = document.querySelector('input[name="popup_display"]:checked');
+        var val = display ? display.value : 'modal';
+        document.querySelectorAll('.popup-fields-window').forEach(function (el) {
+            el.style.display = val === 'window' ? 'block' : 'none';
+        });
+        document.querySelectorAll('.popup-fields-modal').forEach(function (el) {
+            el.style.display = val === 'modal' ? 'block' : 'none';
+        });
     }
     function togglePopupMode() {
         var mode = document.querySelector('input[name="popup_mode"]:checked');
@@ -378,6 +535,9 @@ $mediaPreview = static function (string $path): string {
     }
     document.querySelectorAll('input[name="popup_mode"]').forEach(function (radio) {
         radio.addEventListener('change', togglePopupMode);
+    });
+    document.querySelectorAll('input[name="popup_display"]').forEach(function (radio) {
+        radio.addEventListener('change', togglePopupDisplay);
     });
     typeSel.addEventListener('change', toggleFields);
     toggleFields();
@@ -408,10 +568,21 @@ $mediaPreview = static function (string $path): string {
         <?php foreach ($adManager->allAds() as $ad):
             $aid = (string) ($ad['id'] ?? '');
             $usedIn = [];
-            foreach ($adManager->getPlacementMap() as $place => $mappedId) {
-                if ($mappedId === $aid) {
-                    $usedIn[] = AdManager::PLACEMENTS[$place] ?? $place;
+            foreach ($adManager->getPlacementMap() as $place => $mappedIds) {
+                if (!is_array($mappedIds)) {
+                    $mappedIds = [$mappedIds];
                 }
+                if (!in_array($aid, $mappedIds, true)) {
+                    continue;
+                }
+                $parsed = AdManager::parsePlacementMapKey($place);
+                $label = AdManager::PLACEMENTS[$parsed['placement']] ?? $parsed['placement'];
+                if ($parsed['provider_id'] !== null) {
+                    $label .= ' (' . $parsed['provider_id'] . ')';
+                } elseif ($parsed['service_id'] !== null) {
+                    $label .= ' (' . $parsed['service_id'] . ')';
+                }
+                $usedIn[] = $label;
             }
         ?>
         <tr>

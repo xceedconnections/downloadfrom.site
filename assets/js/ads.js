@@ -23,19 +23,45 @@
         });
     }
 
-    popups.forEach(function (item) {
-        if (!item.html) {
+    function markShown(item) {
+        if (!item.once || !item.id) {
+            return;
+        }
+        try {
+            sessionStorage.setItem(sessionKey + item.id, '1');
+        } catch (e) {
+            /* ignore */
+        }
+    }
+
+    function wasShown(item) {
+        if (!item.once || !item.id) {
+            return false;
+        }
+        try {
+            return sessionStorage.getItem(sessionKey + item.id) === '1';
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function showWindowPopup(item, done) {
+        if (!item.url) {
+            done();
             return;
         }
 
-        if (item.once && item.id) {
-            try {
-                if (sessionStorage.getItem(sessionKey + item.id) === '1') {
-                    return;
-                }
-            } catch (e) {
-                /* ignore */
-            }
+        setTimeout(function () {
+            window.open(item.url, '_blank', 'noopener,noreferrer');
+            markShown(item);
+            done();
+        }, (item.delay || 3) * 1000);
+    }
+
+    function showModalPopup(item, done) {
+        if (!item.html) {
+            done();
+            return;
         }
 
         setTimeout(function () {
@@ -60,30 +86,54 @@
                 overlay.classList.add('open');
             });
 
-            if (item.once && item.id) {
-                try {
-                    sessionStorage.setItem(sessionKey + item.id, '1');
-                } catch (e) {
-                    /* ignore */
-                }
-            }
+            markShown(item);
 
             function closePopup() {
                 overlay.classList.remove('open');
                 setTimeout(function () {
                     overlay.remove();
+                    done();
                 }, 300);
             }
 
             var closeBtn = overlay.querySelector('.ad-popup-close');
             if (closeBtn) {
                 closeBtn.addEventListener('click', closePopup);
+            } else {
+                setTimeout(closePopup, Math.max((item.delay || 3) * 1000, 5000));
             }
+
             overlay.addEventListener('click', function (e) {
                 if (e.target === overlay) {
                     closePopup();
                 }
             });
         }, (item.delay || 3) * 1000);
+    }
+
+    function showPopup(item, done) {
+        if (item.style === 'window') {
+            showWindowPopup(item, done);
+            return;
+        }
+        showModalPopup(item, done);
+    }
+
+    var queue = popups.filter(function (item) {
+        return !wasShown(item);
     });
+
+    function showNext(index) {
+        if (index >= queue.length) {
+            return;
+        }
+        var item = queue[index];
+        showPopup(item, function () {
+            showNext(index + 1);
+        });
+    }
+
+    if (queue.length > 0) {
+        showNext(0);
+    }
 })();

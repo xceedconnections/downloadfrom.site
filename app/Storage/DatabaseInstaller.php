@@ -36,6 +36,10 @@ final class DatabaseInstaller
                 }
             }
 
+            self::ensureColumn($pdo, 'ads', 'popup_display', "VARCHAR(16) NOT NULL DEFAULT 'modal' AFTER popup_closable");
+            self::ensureColumn($pdo, 'ads', 'popup_content_mode', "VARCHAR(16) NOT NULL DEFAULT 'html' AFTER popup_display");
+            self::ensureZoneAssignmentsMultiAd($pdo);
+
             return true;
         } catch (Throwable $e) {
             Logger::error('MySQL schema install failed: ' . $e->getMessage());
@@ -67,6 +71,60 @@ final class DatabaseInstaller
         }
 
         return $statements;
+    }
+
+    private static function ensureColumn(PDO $pdo, string $table, string $column, string $definition): void
+    {
+        $stmt = $pdo->prepare(
+            'SELECT COUNT(*) FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
+        );
+        $stmt->execute([$table, $column]);
+        if ((int) ($stmt->fetchColumn() ?: 0) > 0) {
+            return;
+        }
+
+        $pdo->exec('ALTER TABLE `' . str_replace('`', '``', $table) . '` ADD COLUMN `' . str_replace('`', '``', $column) . '` ' . $definition);
+    }
+
+    private static function ensureZoneAssignmentsMultiAd(PDO $pdo): void
+    {
+        $stmt = $pdo->prepare(
+            'SELECT COUNT(*) FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
+        );
+        $stmt->execute(['ad_zone_assignments']);
+        if ((int) ($stmt->fetchColumn() ?: 0) === 0) {
+            return;
+        }
+
+        self::ensureColumn($pdo, 'ad_zone_assignments', 'sort_order', 'INT NOT NULL DEFAULT 0 AFTER ad_id');
+
+        $pkStmt = $pdo->query(
+            "SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'ad_zone_assignments'
+               AND CONSTRAINT_TYPE = 'PRIMARY KEY'"
+        );
+        if ((int) ($pkStmt ? $pkStmt->fetchColumn() : 0) === 0) {
+            return;
+        }
+
+        $colStmt = $pdo->query(
+            "SELECT COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'ad_zone_assignments'
+               AND CONSTRAINT_NAME = 'PRIMARY'
+             ORDER BY ORDINAL_POSITION"
+        );
+        $pkCols = $colStmt ? array_map('strval', $colStmt->fetchAll(PDO::FETCH_COLUMN)) : [];
+        if ($pkCols === ['placement', 'ad_id']) {
+            return;
+        }
+
+        if ($pkCols === ['placement']) {
+            $pdo->exec('ALTER TABLE ad_zone_assignments DROP PRIMARY KEY, ADD PRIMARY KEY (placement, ad_id)');
+        }
     }
 
     public static function connect(array $config): PDO
