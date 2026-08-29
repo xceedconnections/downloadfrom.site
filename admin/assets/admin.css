@@ -415,6 +415,36 @@
     border-style: dashed;
 }
 
+.popup-mode-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-bottom: .75rem;
+}
+
+.popup-mode-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .4rem .65rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #f8fafc;
+    font-size: .8125rem;
+    cursor: pointer;
+}
+
+.popup-mode-panel {
+    display: none;
+    margin-top: .5rem;
+}
+
+.admin-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .75rem;
+}
+
 .wf-ad-num {
     font-size: .7rem;
     font-weight: 800;

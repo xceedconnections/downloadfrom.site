@@ -498,15 +498,68 @@ class AdManager
         $items = [];
         foreach ($this->getPopupAds($serviceId, $providerId) as $ad) {
             $popup = $ad['popup'] ?? [];
+            $html = $this->renderPopupContent($ad);
+            if ($html === '') {
+                continue;
+            }
+            $content = is_array($ad['content'] ?? null) ? $ad['content'] : [];
+            $link = trim((string) ($content['link_url'] ?? ''));
             $items[] = [
                 'id' => $ad['id'],
                 'delay' => (int) ($popup['delay_seconds'] ?? 3),
-                'once' => false,
+                'once' => !empty($popup['show_once_per_session']),
                 'closable' => !isset($popup['closable']) || $popup['closable'],
-                'html' => $this->renderAdInner($ad),
+                'html' => $html,
+                'iframe' => $link !== '' && trim((string) ($content['html'] ?? '')) === '',
             ];
         }
         return $items;
+    }
+
+    /** @param array<string, mixed> $ad */
+    private function renderPopupContent(array $ad): string
+    {
+        $type = (string) ($ad['type'] ?? 'popup');
+        $content = is_array($ad['content'] ?? null) ? $ad['content'] : [];
+
+        if ($type !== 'popup') {
+            return $this->renderAdInner($ad);
+        }
+
+        $html = trim((string) ($content['html'] ?? ''));
+        $title = trim((string) ($content['title'] ?? ''));
+        if ($html !== '' || $title !== '') {
+            $inner = $html !== '' ? $this->renderHtml($content) : '';
+            if ($title !== '') {
+                $inner = '<strong class="ad-text-title">' . Security::escape($title) . '</strong>' . $inner;
+            }
+            $link = trim((string) ($content['link_url'] ?? ''));
+            if ($link !== '' && $html === '' && $title !== '') {
+                $inner = '<a href="' . Security::escape($link) . '" class="ad-text-link" target="_blank" rel="noopener noreferrer sponsored">' . $inner . '</a>';
+            }
+            return '<div class="ad-popup-text">' . $inner . '</div>';
+        }
+
+        $link = trim((string) ($content['link_url'] ?? ''));
+        if ($link !== '' && preg_match('#^https?://#i', $link)) {
+            return $this->renderPopupIframe($link, $content);
+        }
+
+        return $this->renderBanner($content);
+    }
+
+    /** @param array<string, mixed> $content */
+    private function renderPopupIframe(string $url, array $content): string
+    {
+        $width = max(280, (int) ($content['width'] ?? 600));
+        $height = max(200, (int) ($content['height'] ?? 420));
+
+        return '<div class="ad-popup-iframe-wrap">' .
+            '<iframe class="ad-popup-iframe" src="' . Security::escape($url) . '" ' .
+            'title="Advertisement" width="' . $width . '" height="' . $height . '" ' .
+            'loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox" ' .
+            'referrerpolicy="no-referrer-when-downgrade"></iframe>' .
+            '</div>';
     }
 
     private function renderAdInner(array $ad): string
@@ -520,7 +573,7 @@ class AdManager
             'html' => $this->renderHtml($content),
             'video' => $this->renderVideo($content),
             'network' => $this->renderHtml($content),
-            'popup' => $this->renderHtml($content) ?: $this->renderText($content) ?: $this->renderBanner($content),
+            'popup' => $this->renderPopupContent($ad),
             default => '',
         };
     }

@@ -83,12 +83,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $type = $_POST['type'] ?? 'banner';
         $rawHtml = trim($_POST['content_html'] ?? '');
-        if (in_array($type, ['html', 'network', 'popup'], true)) {
+        $popupHtml = trim($_POST['popup_html'] ?? '');
+        $popupText = trim($_POST['popup_text'] ?? '');
+        $popupTitle = trim($_POST['popup_title'] ?? '');
+        $popupLink = trim($_POST['popup_link_url'] ?? '');
+
+        if ($type === 'popup') {
+            $popupMode = (string) ($_POST['popup_mode'] ?? 'html');
+            $contentHtml = $popupMode === 'html'
+                ? ($popupHtml !== '' ? $popupHtml : (string) ($existingContent['html'] ?? ''))
+                : ($popupMode === 'text'
+                    ? ($popupText !== '' ? Security::sanitizeAdminHtml($popupText) : (string) ($existingContent['html'] ?? ''))
+                    : '');
+            $contentText = '';
+            $contentTitle = $popupMode === 'text' ? $popupTitle : '';
+            $contentLink = $popupMode === 'link'
+                ? ($popupLink !== '' ? $popupLink : (string) ($existingContent['link_url'] ?? ''))
+                : ($popupMode === 'text' ? trim($_POST['popup_text_link'] ?? '') : '');
+            $contentWidth = max(200, (int) ($_POST['popup_iframe_width'] ?? ($existingContent['width'] ?? 600)));
+            $contentHeight = max(150, (int) ($_POST['popup_iframe_height'] ?? ($existingContent['height'] ?? 420)));
+        } elseif (in_array($type, ['html', 'network'], true)) {
             $contentHtml = $rawHtml !== '' ? $rawHtml : (string) ($existingContent['html'] ?? $existingContent['network_code'] ?? '');
+            $contentText = '';
+            $contentTitle = trim($_POST['content_title'] ?? '');
+            $contentLink = trim($_POST['link_url'] ?? '');
+            $contentWidth = max(1, (int) ($_POST['ad_width'] ?? 728));
+            $contentHeight = max(1, (int) ($_POST['ad_height'] ?? 90));
         } elseif ($type === 'text') {
             $contentHtml = $rawHtml !== '' ? Security::sanitizeAdminHtml($rawHtml) : (string) ($existingContent['html'] ?? '');
+            $contentText = '';
+            $contentTitle = trim($_POST['content_title'] ?? '');
+            $contentLink = trim($_POST['link_url'] ?? '');
+            $contentWidth = max(1, (int) ($_POST['ad_width'] ?? 728));
+            $contentHeight = max(1, (int) ($_POST['ad_height'] ?? 90));
         } else {
             $contentHtml = (string) ($existingContent['html'] ?? '');
+            $contentText = '';
+            $contentTitle = trim($_POST['content_title'] ?? '');
+            $contentLink = trim($_POST['link_url'] ?? '');
+            $contentWidth = max(1, (int) ($_POST['ad_width'] ?? 728));
+            $contentHeight = max(1, (int) ($_POST['ad_height'] ?? 90));
         }
 
         $ad = [
@@ -101,19 +135,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'pages' => ['all'],
             'priority' => (int) ($_POST['priority'] ?? 0),
             'content' => [
-                'title' => trim($_POST['content_title'] ?? ''),
-                'text' => '',
+                'title' => $contentTitle,
+                'text' => $contentText,
                 'html' => $contentHtml,
                 'image_url' => $imageUrl,
                 'video_url' => $videoUrl,
-                'link_url' => trim($_POST['link_url'] ?? ''),
+                'link_url' => $contentLink,
                 'alt' => trim($_POST['image_alt'] ?? 'Advertisement'),
-                'width' => max(1, (int) ($_POST['ad_width'] ?? 728)),
-                'height' => max(1, (int) ($_POST['ad_height'] ?? 90)),
+                'width' => $contentWidth,
+                'height' => $contentHeight,
             ],
             'popup' => [
                 'delay_seconds' => max(0, min(60, (int) ($_POST['popup_delay'] ?? 3))),
-                'show_once_per_session' => false,
+                'show_once_per_session' => isset($_POST['popup_once']),
                 'closable' => isset($_POST['popup_closable']),
             ],
             'updated' => time(),
@@ -171,6 +205,20 @@ $p = $a['popup'] ?? [];
 $adType = (string) ($a['type'] ?? 'html');
 if ($adType === 'network') {
     $adType = 'html';
+}
+$popupMode = 'html';
+if ($adType === 'popup') {
+    $popupHtml = trim((string) ($c['html'] ?? ''));
+    $popupLink = trim((string) ($c['link_url'] ?? ''));
+    $popupText = trim((string) ($c['text'] ?? ''));
+    $popupTitle = trim((string) ($c['title'] ?? ''));
+    if ($popupHtml !== '') {
+        $popupMode = 'html';
+    } elseif ($popupLink !== '') {
+        $popupMode = 'link';
+    } elseif ($popupTitle !== '') {
+        $popupMode = 'text';
+    }
 }
 $mediaPreview = static function (string $path): string {
     if ($path === '') {
@@ -257,10 +305,46 @@ $mediaPreview = static function (string $path): string {
         </fieldset>
 
         <fieldset class="admin-fieldset ad-fields-popup ad-fields-type">
+            <legend>Popup content</legend>
+            <p class="admin-note">Choose one content type below. After saving, assign this ad to the <strong>Popup</strong> zone in <a href="ads.php?tab=map">Placement Map → Global</a>.</p>
+
+            <div class="popup-mode-tabs">
+                <label class="popup-mode-tab"><input type="radio" name="popup_mode" value="html" <?= $popupMode === 'html' ? 'checked' : '' ?>> HTML / Script</label>
+                <label class="popup-mode-tab"><input type="radio" name="popup_mode" value="link" <?= $popupMode === 'link' ? 'checked' : '' ?>> URL (iframe)</label>
+                <label class="popup-mode-tab"><input type="radio" name="popup_mode" value="text" <?= $popupMode === 'text' ? 'checked' : '' ?>> Text</label>
+            </div>
+
+            <div class="popup-mode-panel popup-mode-html">
+                <label>HTML / script code
+                    <textarea name="popup_html" rows="10" class="ad-code-textarea" placeholder="Paste HTML, AdSense, or any embed code"><?= Security::escape($c['html'] ?? '') ?></textarea>
+                </label>
+            </div>
+
+            <div class="popup-mode-panel popup-mode-link">
+                <label>Page URL to embed in iframe
+                    <input type="url" name="popup_link_url" value="<?= Security::escape($c['link_url'] ?? '') ?>" placeholder="https://example.com/landing-page">
+                </label>
+                <div class="admin-form-row">
+                    <label>Iframe width (px) <input type="number" name="popup_iframe_width" min="280" max="1200" value="<?= (int) ($c['width'] ?? 600) ?>"></label>
+                    <label>Iframe height (px) <input type="number" name="popup_iframe_height" min="200" max="900" value="<?= (int) ($c['height'] ?? 420) ?>"></label>
+                </div>
+                <p class="admin-field-hint">Some websites block iframe embedding. If the page stays blank, use HTML mode or link to the page instead.</p>
+            </div>
+
+            <div class="popup-mode-panel popup-mode-text">
+                <label>Title <input type="text" name="popup_title" value="<?= Security::escape($c['title'] ?? '') ?>"></label>
+                <label>Message
+                    <textarea name="popup_text" class="wysiwyg" id="ad-popup-text" rows="6"><?= Security::escape($c['text'] ?? '') ?></textarea>
+                </label>
+                <label>Optional link URL <input type="url" name="popup_text_link" value="<?= Security::escape($popupMode === 'text' ? ($c['link_url'] ?? '') : '') ?>" placeholder="https://…"></label>
+            </div>
+        </fieldset>
+
+        <fieldset class="admin-fieldset ad-fields-popup ad-fields-type">
             <legend>Popup timing</legend>
             <label>Delay (seconds) <input type="number" name="popup_delay" min="0" max="60" value="<?= (int) ($p['delay_seconds'] ?? 3) ?>"></label>
             <label class="checkbox"><input type="checkbox" name="popup_closable" <?= !isset($p['closable']) || $p['closable'] ? 'checked' : '' ?>> Show close button</label>
-            <p class="admin-note">Popup uses the HTML / Script code above. Assign to <code>popup</code> in Placement Map.</p>
+            <label class="checkbox"><input type="checkbox" name="popup_once" <?= !empty($p['show_once_per_session']) ? 'checked' : '' ?>> Show once per browser session</label>
         </fieldset>
 
         <button type="submit" class="btn btn-primary">Save Ad</button>
@@ -278,14 +362,23 @@ $mediaPreview = static function (string $path): string {
         document.querySelectorAll('.ad-fields-type').forEach(function (el) { el.style.display = 'none'; });
         var show = document.querySelector('.ad-fields-' + t);
         if (show) show.style.display = 'block';
-        if (htmlField) htmlField.disabled = (t === 'text');
+        if (htmlField) htmlField.disabled = (t === 'text' || t === 'popup');
         if (textField) textField.disabled = (t !== 'text');
         if (t === 'popup') {
-            var htmlBlock = document.querySelector('.ad-fields-html');
-            if (htmlBlock) htmlBlock.style.display = 'block';
-            if (htmlField) htmlField.disabled = false;
+            document.querySelectorAll('.ad-fields-popup').forEach(function (el) { el.style.display = 'block'; });
+            togglePopupMode();
         }
     }
+    function togglePopupMode() {
+        var mode = document.querySelector('input[name="popup_mode"]:checked');
+        var val = mode ? mode.value : 'html';
+        document.querySelectorAll('.popup-mode-panel').forEach(function (el) { el.style.display = 'none'; });
+        var panel = document.querySelector('.popup-mode-' + val);
+        if (panel) panel.style.display = 'block';
+    }
+    document.querySelectorAll('input[name="popup_mode"]').forEach(function (radio) {
+        radio.addEventListener('change', togglePopupMode);
+    });
     typeSel.addEventListener('change', toggleFields);
     toggleFields();
 })();

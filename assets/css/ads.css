@@ -382,6 +382,54 @@
     background: var(--color-border, #e4e4e7);
 }
 
+.ad-popup-overlay-iframe {
+    padding: 1.25rem;
+}
+
+.ad-popup-iframe-dialog {
+    max-width: min(96vw, 820px);
+    padding: 0;
+    overflow: hidden;
+}
+
+.ad-popup-iframe-dialog .ad-label {
+    position: absolute;
+    top: .5rem;
+    left: .75rem;
+    z-index: 2;
+    margin: 0;
+    font-size: .625rem;
+    opacity: .85;
+}
+
+.ad-popup-iframe-dialog .ad-popup-close {
+    z-index: 3;
+}
+
+.ad-popup-iframe-wrap {
+    width: 100%;
+    line-height: 0;
+    background: #fff;
+}
+
+.ad-popup-iframe {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    border: 0;
+    background: #fff;
+}
+
+.ad-popup-text {
+    padding-top: .25rem;
+}
+
+.ad-popup-text .ad-text-title {
+    display: block;
+    margin-bottom: .5rem;
+    font-size: 1.125rem;
+}
+
 .ad-html {
     display: block;
     width: 100%;
