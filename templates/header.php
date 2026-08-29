@@ -179,7 +179,8 @@ $siteName = $settings ? (string) ($settings->get('site_name') ?: $config['app'][
     <?php
     $adPageType = $adPageType ?? 'all';
     $adServiceId = $adServiceId ?? null;
-    if (isset($adManager) && $adManager->hasPlacement('header_banner', $adPageType, $adServiceId)): ?>
+    $adProviderId = $adProviderId ?? null;
+    if (isset($adManager) && $adManager->hasPlacement('header_banner', $adPageType, $adServiceId, $adProviderId)): ?>
     <div class="ad-strip ad-strip-header">
         <div class="container">
             <?php $placement = 'header_banner'; require __DIR__ . '/partials/ad-zone.php'; ?>

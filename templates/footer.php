@@ -2,7 +2,8 @@
     <?php
     $adPageType = $adPageType ?? 'all';
     $adServiceId = $adServiceId ?? null;
-    if (isset($adManager) && $adManager->hasPlacement('footer_banner', $adPageType, $adServiceId)): ?>
+    $adProviderId = $adProviderId ?? null;
+    if (isset($adManager) && $adManager->hasPlacement('footer_banner', $adPageType, $adServiceId, $adProviderId)): ?>
     <div class="ad-strip ad-strip-footer">
         <div class="container">
             <?php $placement = 'footer_banner'; require __DIR__ . '/partials/ad-zone.php'; ?>
@@ -64,7 +65,8 @@
     <?php
         $footerAdPageType = $adPageType ?? 'all';
         $footerAdServiceId = $adServiceId ?? null;
-        $adCfg = $adManager->getConfig($footerAdPageType, $footerAdServiceId);
+        $footerAdProviderId = $adProviderId ?? null;
+        $adCfg = $adManager->getConfig($footerAdPageType, $footerAdServiceId, $footerAdProviderId);
     ?>
     <script>window.__AD_CONFIG__=<?= json_encode($adCfg, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="<?= App\Security::escape($baseUrl) ?>/assets/js/ads.js" defer></script>
@@ -76,7 +78,7 @@
             : 5;
         $downloadModalHtml = '';
         if (isset($adManager)) {
-            foreach ($adManager->getDownloadModalAds($adServiceId ?? null) as $ad) {
+            foreach ($adManager->getDownloadModalAds($adServiceId ?? null, ($adProviderId ?? '') !== '' ? $adProviderId : null) as $ad) {
                 $downloadModalHtml .= $adManager->renderAd($ad, 'download_modal');
             }
         }

@@ -20,11 +20,13 @@ $adServiceId = ($data['service'] ?? '') === App\ServiceConfig::SERVICE_AUDIO
 
     : (($data['service'] ?? '') === App\ServiceConfig::SERVICE_ALL ? App\ServiceConfig::SERVICE_ALL : App\ServiceConfig::SERVICE_VIDEO);
 
+$adProviderId = (string) ($data['platform'] ?? '');
+
 require __DIR__ . '/header.php';
 
 
 
-$hasSidebarAds = isset($adManager) && $adManager->getForPlacement('result_sidebar', 'result', $adServiceId) !== [];
+$hasSidebarAds = isset($adManager) && $adManager->getForPlacement('result_sidebar', 'result', $adServiceId, $adProviderId !== '' ? $adProviderId : null) !== [];
 
 $platformId = (string) ($data['platform'] ?? '');
 

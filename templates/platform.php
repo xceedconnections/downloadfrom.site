@@ -12,6 +12,7 @@ $jsonLdScripts = [
 ];
 $adPageType = 'platform';
 $adServiceId = $meta['service'] ?? App\ServiceConfig::SERVICE_VIDEO;
+$adProviderId = (string) ($meta['id'] ?? '');
 require __DIR__ . '/header.php';
 ?>
 
@@ -28,7 +29,7 @@ require __DIR__ . '/header.php';
                 <?php require __DIR__ . '/partials/url-form.php'; ?>
                 <?php $placement = 'platform_top'; require __DIR__ . '/partials/ad-zone.php'; ?>
             </div>
-            <?php if (isset($adManager) && $adManager->hasPlacement('platform_hero_sidebar', $adPageType ?? 'platform', $adServiceId ?? null)): ?>
+            <?php if (isset($adManager) && $adManager->hasPlacement('platform_hero_sidebar', $adPageType ?? 'platform', $adServiceId ?? null, $adProviderId ?? null)): ?>
             <aside class="hero-ad-column" aria-label="Advertisement">
                 <?php $placement = 'platform_hero_sidebar'; require __DIR__ . '/partials/ad-zone.php'; ?>
             </aside>

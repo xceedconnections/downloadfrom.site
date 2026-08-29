@@ -183,13 +183,13 @@ class AdManager
     }
 
     /** @return array<int, array> */
-    public function getForPlacement(string $placement, string $pageType = 'all', ?string $serviceId = null): array
+    public function getForPlacement(string $placement, string $pageType = 'all', ?string $serviceId = null, ?string $providerId = null): array
     {
         if (!$this->isEnabled()) {
             return [];
         }
 
-        foreach (self::placementMapLookupKeys($placement, $serviceId) as $mapKey) {
+        foreach (self::placementMapLookupKeys($placement, $serviceId, $providerId) as $mapKey) {
             $adId = trim((string) ($this->getPlacementMap()[$mapKey] ?? ''));
             if ($adId !== '') {
                 $ad = $this->getAd($adId);
@@ -279,14 +279,14 @@ class AdManager
         return array_values(array_unique($candidates));
     }
 
-    public function hasPlacement(string $placement, string $pageType = 'all', ?string $serviceId = null): bool
+    public function hasPlacement(string $placement, string $pageType = 'all', ?string $serviceId = null, ?string $providerId = null): bool
     {
-        return $this->getForPlacement($placement, $pageType, $serviceId) !== [];
+        return $this->getForPlacement($placement, $pageType, $serviceId, $providerId) !== [];
     }
 
-    public function renderZone(string $placement, string $pageType = 'all', ?string $serviceId = null): string
+    public function renderZone(string $placement, string $pageType = 'all', ?string $serviceId = null, ?string $providerId = null): string
     {
-        $ads = $this->getForPlacement($placement, $pageType, $serviceId);
+        $ads = $this->getForPlacement($placement, $pageType, $serviceId, $providerId);
         if ($ads === []) {
             return '';
         }
@@ -302,15 +302,15 @@ class AdManager
     }
 
     /** @return array<int, array> */
-    public function getDownloadModalAds(?string $serviceId = null): array
+    public function getDownloadModalAds(?string $serviceId = null, ?string $providerId = null): array
     {
-        return $this->getForPlacement('download_modal', 'result', $serviceId);
+        return $this->getForPlacement('download_modal', 'result', $serviceId, $providerId);
     }
 
     /** @return array<int, array> */
-    public function getPopupAds(?string $serviceId = null): array
+    public function getPopupAds(?string $serviceId = null, ?string $providerId = null): array
     {
-        return $this->getForPlacement('popup', 'all', $serviceId);
+        return $this->getForPlacement('popup', 'all', $serviceId, $providerId);
     }
 
     public function renderAd(array $ad, string $placement = ''): string
@@ -480,23 +480,23 @@ class AdManager
     }
 
     /** @return array<string, mixed> */
-    public function getConfig(?string $pageType = 'all', ?string $serviceId = null): array
+    public function getConfig(?string $pageType = 'all', ?string $serviceId = null, ?string $providerId = null): array
     {
         return [
             'enabled' => $this->isEnabled(),
             'download_modal' => [
-                'enabled' => $this->getDownloadModalAds($serviceId) !== [],
+                'enabled' => $this->getDownloadModalAds($serviceId, $providerId) !== [],
                 'countdown' => (int) ($this->data['download_modal_countdown'] ?? 5),
             ],
-            'popup' => $this->buildPopupConfig($serviceId),
+            'popup' => $this->buildPopupConfig($serviceId, $providerId),
         ];
     }
 
     /** @return array<int, array<string, mixed>> */
-    private function buildPopupConfig(?string $serviceId = null): array
+    private function buildPopupConfig(?string $serviceId = null, ?string $providerId = null): array
     {
         $items = [];
-        foreach ($this->getPopupAds($serviceId) as $ad) {
+        foreach ($this->getPopupAds($serviceId, $providerId) as $ad) {
             $popup = $ad['popup'] ?? [];
             $items[] = [
                 'id' => $ad['id'],
@@ -618,14 +618,18 @@ class AdManager
         };
     }
 
-    /** @return array<string, array{title: string, description: string, layout: string, service_id?: string}> */
-    public static function placementMapPages(Settings $settings): array
+    /**
+     * @param array<string, array<string, mixed>> $videoPlatforms
+     * @param array<string, array<string, mixed>> $audioPlatforms
+     * @return array<string, array<string, mixed>>
+     */
+    public static function placementMapPages(Settings $settings, array $videoPlatforms = [], array $audioPlatforms = []): array
     {
         $services = ServiceConfig::getServices($settings);
         $pages = [
             'global' => [
                 'title' => 'All pages (global)',
-                'description' => 'Header, footer, and popup zones shared site-wide. Service-specific maps below override these on their pages when set.',
+                'description' => 'Header, footer, and popup zones shared site-wide. More specific maps below override these when set.',
                 'layout' => 'global',
             ],
             'home' => [
@@ -635,53 +639,86 @@ class AdManager
             ],
         ];
 
-        foreach ([ServiceConfig::SERVICE_VIDEO, ServiceConfig::SERVICE_AUDIO] as $serviceId) {
+        foreach ([ServiceConfig::SERVICE_VIDEO => $videoPlatforms, ServiceConfig::SERVICE_AUDIO => $audioPlatforms] as $serviceId => $platforms) {
             if (empty($services[$serviceId]['enabled'])) {
                 continue;
             }
 
-            $label = (string) ($services[$serviceId]['name'] ?? $services[$serviceId]['nav_label'] ?? $serviceId);
+            $serviceLabel = (string) ($services[$serviceId]['name'] ?? $services[$serviceId]['nav_label'] ?? $serviceId);
             $type = ServiceConfig::serviceType($serviceId);
-            $platformExample = $type === 'audio' ? 'SoundCloud, TikTok MP3' : 'TikTok, YouTube';
             $resultLabel = $type === 'audio' ? 'Audio / MP3 links' : 'Video download links';
 
-            $pages['platform_' . $serviceId] = [
-                'title' => $label . ' — provider pages',
-                'description' => 'Individual ' . strtolower($label) . ' landing pages (e.g. ' . $platformExample . ') and the ' . strtolower($label) . ' hub page.',
+            $pages['hub_' . $serviceId] = [
+                'title' => $serviceLabel . ' — converter hub',
+                'description' => 'Main ' . strtolower($serviceLabel) . ' page that lists all providers (e.g. /' . ServiceConfig::servicePageSlug($serviceId) . ').',
                 'layout' => 'platform',
                 'service_id' => $serviceId,
             ];
-            $pages['result_' . $serviceId] = [
-                'title' => $label . ' — result pages',
-                'description' => 'Shown after Generate Links for ' . strtolower($label) . ' URLs — ' . $resultLabel . '.',
-                'layout' => 'result',
-                'service_id' => $serviceId,
-                'result_links_label' => $resultLabel,
-            ];
+
+            foreach ($platforms as $providerId => $platform) {
+                if (!is_array($platform) || !ServiceConfig::isProviderAssigned($settings, $serviceId, (string) $providerId)) {
+                    continue;
+                }
+
+                $providerName = (string) ($platform['name'] ?? $platform['h1'] ?? $providerId);
+                $slug = (string) ($platform['slug'] ?? $providerId);
+                $pageKey = $serviceId . '_' . $providerId;
+
+                $pages['platform_' . $pageKey] = [
+                    'title' => $providerName . ' — provider page',
+                    'description' => 'Landing page at /' . $slug . ' (' . strtolower($serviceLabel) . '). Assign ads shown only on this provider.',
+                    'layout' => 'platform',
+                    'service_id' => $serviceId,
+                    'provider_id' => (string) $providerId,
+                    'provider_name' => $providerName,
+                ];
+                $pages['result_' . $pageKey] = [
+                    'title' => $providerName . ' — result page',
+                    'description' => 'Download result page after a ' . $providerName . ' URL is processed (' . $resultLabel . ').',
+                    'layout' => 'result',
+                    'service_id' => $serviceId,
+                    'provider_id' => (string) $providerId,
+                    'provider_name' => $providerName,
+                    'result_links_label' => $resultLabel,
+                ];
+            }
         }
 
         return $pages;
     }
 
-    public static function placementMapKey(string $placement, ?string $serviceId = null): string
+    public static function placementMapKey(string $placement, ?string $serviceId = null, ?string $providerId = null): string
     {
+        $key = $placement;
         if ($serviceId !== null && $serviceId !== '' && $serviceId !== ServiceConfig::SERVICE_ALL) {
-            return $placement . '@' . $serviceId;
+            $key .= '@' . $serviceId;
+            if ($providerId !== null && $providerId !== '') {
+                $key .= ':' . $providerId;
+            }
         }
 
-        return $placement;
+        return $key;
     }
 
-    /** @return array{placement: string, service_id: ?string} */
+    /** @return array{placement: string, service_id: ?string, provider_id: ?string} */
     public static function parsePlacementMapKey(string $key): array
     {
         if (!str_contains($key, '@')) {
-            return ['placement' => $key, 'service_id' => null];
+            return ['placement' => $key, 'service_id' => null, 'provider_id' => null];
         }
 
-        [$placement, $serviceId] = explode('@', $key, 2);
+        [$placement, $scope] = explode('@', $key, 2);
+        $serviceId = $scope;
+        $providerId = null;
+        if (str_contains($scope, ':')) {
+            [$serviceId, $providerId] = explode(':', $scope, 2);
+        }
 
-        return ['placement' => $placement, 'service_id' => $serviceId !== '' ? $serviceId : null];
+        return [
+            'placement' => $placement,
+            'service_id' => $serviceId !== '' ? $serviceId : null,
+            'provider_id' => $providerId !== '' ? $providerId : null,
+        ];
     }
 
     public static function isValidPlacementMapKey(string $key): bool
@@ -692,17 +729,29 @@ class AdManager
         }
 
         if ($parsed['service_id'] === null) {
+            return $parsed['provider_id'] === null;
+        }
+
+        if (!in_array($parsed['service_id'], [ServiceConfig::SERVICE_VIDEO, ServiceConfig::SERVICE_AUDIO], true)) {
+            return false;
+        }
+
+        if ($parsed['provider_id'] === null) {
             return true;
         }
 
-        return in_array($parsed['service_id'], [ServiceConfig::SERVICE_VIDEO, ServiceConfig::SERVICE_AUDIO], true);
+        return (bool) preg_match('/^[a-z0-9_-]+$/i', $parsed['provider_id']);
     }
 
     /** @return string[] */
-    public static function placementMapLookupKeys(string $placement, ?string $serviceId = null): array
+    public static function placementMapLookupKeys(string $placement, ?string $serviceId = null, ?string $providerId = null): array
     {
         $keys = [];
         foreach (self::placementAliases($placement) as $alias) {
+            if ($providerId !== null && $providerId !== ''
+                && $serviceId !== null && $serviceId !== '' && $serviceId !== ServiceConfig::SERVICE_ALL) {
+                $keys[] = self::placementMapKey($alias, $serviceId, $providerId);
+            }
             if ($serviceId !== null && $serviceId !== '' && $serviceId !== ServiceConfig::SERVICE_ALL) {
                 $keys[] = self::placementMapKey($alias, $serviceId);
             }

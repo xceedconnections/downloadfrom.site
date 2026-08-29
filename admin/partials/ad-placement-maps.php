@@ -7,6 +7,8 @@ use App\Security;
 
 /** @var App\AdManager $adManager */
 /** @var App\Settings $settings */
+/** @var array<string, array<string, mixed>> $videoPlatforms */
+/** @var array<string, array<string, mixed>> $audioPlatforms */
 /** @var array $config */
 /** @var string $message */
 /** @var string $error */
@@ -14,7 +16,7 @@ use App\Security;
 $placementMap = $adManager->getPlacementMap();
 $adData = $adManager->getData();
 $allAds = $adManager->allAds();
-$mapPages = AdManager::placementMapPages($settings);
+$mapPages = AdManager::placementMapPages($settings, $videoPlatforms, $audioPlatforms);
 
 /**
  * @param array<string, string> $placementMap
@@ -26,15 +28,22 @@ $renderZonePicker = static function (
     string $title,
     string $extraClass = '',
     string $hint = '',
-    ?string $serviceId = null
+    ?string $serviceId = null,
+    ?string $providerId = null
 ) use ($placementMap, $allAds): void {
-    $mapKey = AdManager::placementMapKey($placementKey, $serviceId);
+    $mapKey = AdManager::placementMapKey($placementKey, $serviceId, $providerId);
     $plabel = AdManager::PLACEMENTS[$placementKey] ?? $title;
-    if ($serviceId !== null) {
+    if ($providerId !== null) {
+        $plabel .= ' (' . $providerId . ')';
+    } elseif ($serviceId !== null) {
         $plabel .= ' (' . $serviceId . ')';
     }
     $selectedId = (string) ($placementMap[$mapKey] ?? '');
-    $globalId = $serviceId !== null ? (string) ($placementMap[$placementKey] ?? '') : '';
+    $serviceKey = $serviceId !== null && $providerId !== null
+        ? AdManager::placementMapKey($placementKey, $serviceId)
+        : ($serviceId !== null ? AdManager::placementMapKey($placementKey, $serviceId) : '');
+    $serviceAssigned = $serviceKey !== '' ? (string) ($placementMap[$serviceKey] ?? '') : '';
+    $globalId = (string) ($placementMap[$placementKey] ?? '');
     $classes = trim('wf-block wf-ad wf-zone-picker ' . $extraClass);
     ?>
     <div class="<?= Security::escape($classes) ?>" data-placement="<?= Security::escape($mapKey) ?>">
@@ -43,7 +52,9 @@ $renderZonePicker = static function (
         <?php if ($hint !== ''): ?>
         <span class="wf-ad-hint"><?= Security::escape($hint) ?></span>
         <?php endif; ?>
-        <?php if ($serviceId !== null && $selectedId === '' && $globalId !== ''): ?>
+        <?php if ($selectedId === '' && $providerId !== null && $serviceAssigned !== ''): ?>
+        <span class="wf-ad-hint">Falls back to service-wide ad when empty.</span>
+        <?php elseif ($selectedId === '' && ($providerId !== null || $serviceId !== null) && $globalId !== ''): ?>
         <span class="wf-ad-hint">Falls back to global zone ad when empty.</span>
         <?php endif; ?>
         <label class="wf-ad-select-wrap">
@@ -69,32 +80,33 @@ $renderZonePicker = static function (
     <?php
 };
 
-$renderPlatformWireframe = static function (?string $serviceId) use ($renderZonePicker): void {
+$renderPlatformWireframe = static function (?string $serviceId, ?string $providerId = null, ?string $providerLabel = null) use ($renderZonePicker): void {
+    $providerHint = $providerLabel !== null ? $providerLabel . ' page' : 'Converter hub';
     ?>
     <div class="wf-block wf-header"><span class="wf-label">Header</span></div>
-    <?php $renderZonePicker('header_banner', '1', 'Header banner', 'wf-ad-sm', '', $serviceId); ?>
+    <?php $renderZonePicker('header_banner', '1', 'Header banner', 'wf-ad-sm', '', $serviceId, $providerId); ?>
     <div class="wf-block wf-hero wf-hero-compact">
         <div class="wf-hero-split">
             <div class="wf-hero-left">
-                <span class="wf-label">Provider title + form</span>
-                <?php $renderZonePicker('platform_top', '3', 'Below form', 'wf-ad-inline', '', $serviceId); ?>
+                <span class="wf-label"><?= Security::escape($providerHint) ?> + form</span>
+                <?php $renderZonePicker('platform_top', '3', 'Below form', 'wf-ad-inline', '', $serviceId, $providerId); ?>
             </div>
             <div class="wf-hero-right">
-                <?php $renderZonePicker('platform_hero_sidebar', '2', 'Hero sidebar', 'wf-ad-highlight wf-ad-fill', 'Right of form (desktop)', $serviceId); ?>
+                <?php $renderZonePicker('platform_hero_sidebar', '2', 'Hero sidebar', 'wf-ad-highlight wf-ad-fill', 'Right of form (desktop)', $serviceId, $providerId); ?>
             </div>
         </div>
     </div>
     <div class="wf-block wf-content"><span class="wf-label">How to Use + FAQ</span></div>
-    <?php $renderZonePicker('platform_bottom', '4', 'Bottom content', '', '', $serviceId); ?>
-    <?php $renderZonePicker('footer_banner', '5', 'Footer banner', 'wf-ad-sm', '', $serviceId); ?>
+    <?php $renderZonePicker('platform_bottom', '4', 'Bottom content', '', '', $serviceId, $providerId); ?>
+    <?php $renderZonePicker('footer_banner', '5', 'Footer banner', 'wf-ad-sm', '', $serviceId, $providerId); ?>
     <?php
 };
 
-$renderResultWireframe = static function (?string $serviceId, string $linksLabel = 'Download links') use ($renderZonePicker): void {
+$renderResultWireframe = static function (?string $serviceId, string $linksLabel = 'Download links', ?string $providerId = null) use ($renderZonePicker): void {
     ?>
     <div class="wf-block wf-header"><span class="wf-label">Header</span></div>
-    <?php $renderZonePicker('header_banner', '1', 'Header banner', 'wf-ad-sm', '', $serviceId); ?>
-    <?php $renderZonePicker('result_top', '2', 'Result top', '', '', $serviceId); ?>
+    <?php $renderZonePicker('header_banner', '1', 'Header banner', 'wf-ad-sm', '', $serviceId, $providerId); ?>
+    <?php $renderZonePicker('result_top', '2', 'Result top', '', '', $serviceId, $providerId); ?>
     <div class="wf-block wf-result-split">
         <div class="wf-result-main">
             <span class="wf-label">Thumbnail + title</span>
@@ -103,12 +115,12 @@ $renderResultWireframe = static function (?string $serviceId, string $linksLabel
             </div>
         </div>
         <div class="wf-result-side">
-            <?php $renderZonePicker('result_sidebar', '3', 'Result sidebar', 'wf-ad-highlight wf-ad-fill', 'Right column', $serviceId); ?>
+            <?php $renderZonePicker('result_sidebar', '3', 'Result sidebar', 'wf-ad-highlight wf-ad-fill', 'Right column', $serviceId, $providerId); ?>
         </div>
     </div>
-    <?php $renderZonePicker('result_bottom', '4', 'Result bottom', '', '', $serviceId); ?>
-    <?php $renderZonePicker('download_modal', 'Modal', 'Download modal', 'wf-ad-modal', 'When user clicks Download', $serviceId); ?>
-    <?php $renderZonePicker('footer_banner', '5', 'Footer banner', 'wf-ad-sm', '', $serviceId); ?>
+    <?php $renderZonePicker('result_bottom', '4', 'Result bottom', '', '', $serviceId, $providerId); ?>
+    <?php $renderZonePicker('download_modal', 'Modal', 'Download modal', 'wf-ad-modal', 'When user clicks Download', $serviceId, $providerId); ?>
+    <?php $renderZonePicker('footer_banner', '5', 'Footer banner', 'wf-ad-sm', '', $serviceId, $providerId); ?>
     <?php
 };
 
@@ -134,12 +146,14 @@ $renderResultWireframe = static function (?string $serviceId, string $linksLabel
 
     <fieldset class="admin-fieldset ad-map-visual-fieldset">
         <legend>Assign ads on the layout</legend>
-        <p class="admin-note">Pick an ad in each yellow zone. <strong>Global</strong> and <strong>Homepage</strong> apply site-wide. Each <strong>active service</strong> (Video / Audio Converter) has its own provider and result layouts — assign ads per service. Empty service zones fall back to the matching global zone when set.</p>
+        <p class="admin-note">Each <strong>enabled provider</strong> (TikTok, YouTube video, YouTube audio, etc.) gets its own provider + result diagram. Assign different ads per provider. Empty zones fall back: provider → service hub → global.</p>
 
         <div class="ad-map-grid">
         <?php foreach ($mapPages as $pageId => $page):
             $layout = (string) ($page['layout'] ?? $pageId);
             $serviceId = isset($page['service_id']) ? (string) $page['service_id'] : null;
+            $providerId = isset($page['provider_id']) ? (string) $page['provider_id'] : null;
+            $providerName = isset($page['provider_name']) ? (string) $page['provider_name'] : null;
         ?>
             <article class="ad-map-card" id="ad-map-<?= Security::escape($pageId) ?>">
                 <header class="ad-map-card-head">
@@ -180,10 +194,10 @@ $renderResultWireframe = static function (?string $serviceId, string $linksLabel
                     <?php $renderZonePicker('footer_banner', '6', 'Footer banner', 'wf-ad-sm'); ?>
 
                     <?php elseif ($layout === 'platform'): ?>
-                    <?php $renderPlatformWireframe($serviceId); ?>
+                    <?php $renderPlatformWireframe($serviceId, $providerId, $providerName); ?>
 
                     <?php elseif ($layout === 'result'): ?>
-                    <?php $renderResultWireframe($serviceId, (string) ($page['result_links_label'] ?? 'Download links')); ?>
+                    <?php $renderResultWireframe($serviceId, (string) ($page['result_links_label'] ?? 'Download links'), $providerId); ?>
                     <?php endif; ?>
                 </div>
             </article>

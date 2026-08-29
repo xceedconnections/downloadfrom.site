@@ -275,8 +275,10 @@ class Router
         $pageType = trim((string) ($_GET['p'] ?? 'all'));
         $serviceId = trim((string) ($_GET['s'] ?? ''));
         $serviceId = $serviceId !== '' ? $serviceId : null;
+        $providerId = trim((string) ($_GET['provider'] ?? ''));
+        $providerId = $providerId !== '' ? $providerId : null;
 
-        $html = $this->adManager->renderZone($placement, $pageType, $serviceId);
+        $html = $this->adManager->renderZone($placement, $pageType, $serviceId, $providerId);
 
         header('Content-Type: application/json; charset=utf-8');
         header('Cache-Control: private, max-age=300');

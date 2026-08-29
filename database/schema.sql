@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS ads (
 
 CREATE TABLE IF NOT EXISTS ad_placements (
     ad_id VARCHAR(32) NOT NULL,
-    placement VARCHAR(64) NOT NULL,
+    placement VARCHAR(128) NOT NULL,
     PRIMARY KEY (ad_id, placement),
     CONSTRAINT fk_ad_placements_ad FOREIGN KEY (ad_id) REFERENCES ads (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS ad_pages (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS ad_zone_assignments (
-    placement VARCHAR(64) NOT NULL,
+    placement VARCHAR(128) NOT NULL,
     ad_id VARCHAR(32) NOT NULL,
     PRIMARY KEY (placement),
     CONSTRAINT fk_ad_zone_assignments_ad FOREIGN KEY (ad_id) REFERENCES ads (id) ON DELETE CASCADE
