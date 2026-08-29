@@ -16,7 +16,7 @@ $config = require dirname(__DIR__) . '/config/config.php';
 require dirname(__DIR__) . '/app/bootstrap.php';
 
 use App\JsonDatabase;
-use App\Storage\MysqlStorage;
+use App\Storage\DatabaseInstaller;
 use App\Storage\StorageBootstrap;
 use App\Storage\StorageFactory;
 use App\Storage\StorageKeys;
@@ -28,13 +28,16 @@ if ($driver !== 'mysql') {
 }
 
 try {
+    DatabaseInstaller::ensureSchema($config);
     $mysql = StorageFactory::create($config);
 } catch (Throwable $e) {
     fwrite(STDERR, "MySQL connection failed: " . $e->getMessage() . "\n");
+    fwrite(STDERR, "Check config/config.local.php — database, username, and password must match aaPanel.\n");
     exit(1);
 }
 
 echo "MySQL connection OK.\n";
+echo "Table app_storage ready.\n";
 
 StorageBootstrap::ensureInitialized($mysql, $config);
 echo "Seeded empty stores from database/seeds/ (if any were missing).\n";
@@ -84,6 +87,12 @@ if (is_dir($jsonPath)) {
 foreach (StorageKeys::primaryStores() as $store) {
     $status = $mysql->exists($store) ? 'present' : 'missing';
     echo "  [{$status}] {$store}\n";
+}
+
+$all = DatabaseInstaller::listStores($config);
+echo "\nRows in app_storage: " . count($all) . "\n";
+if ($all !== []) {
+    echo "Keys: " . implode(', ', $all) . "\n";
 }
 
 echo "\nDone. Admin settings, ads, and FAQ now live in MySQL.\n";

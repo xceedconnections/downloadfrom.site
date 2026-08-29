@@ -31,7 +31,13 @@ fi
 
 # Seed MySQL if empty (safe to run every deploy — skips existing stores)
 if [ -f "$ROOT/config/config.local.php" ]; then
-    php "$ROOT/tools/setup-mysql.php" 2>/dev/null || echo "[deploy] setup-mysql skipped (check DB credentials)"
+    php "$ROOT/tools/setup-mysql.php" || {
+        echo "[deploy] ERROR: setup-mysql failed — check config/config.local.php DB password"
+        exit 1
+    }
+else
+    echo "[deploy] ERROR: config/config.local.php missing — create it with MySQL password"
+    exit 1
 fi
 
 echo "[deploy] done — code updated; admin settings remain in MySQL"

@@ -20,6 +20,10 @@ final class StorageBootstrap
             return;
         }
 
+        if (!DatabaseInstaller::ensureSchema($config)) {
+            return;
+        }
+
         $seedsDir = dirname(__DIR__, 2) . '/database/seeds';
 
         foreach (StorageKeys::primaryStores() as $store) {
