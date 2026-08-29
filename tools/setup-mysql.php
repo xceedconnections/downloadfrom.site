@@ -27,6 +27,26 @@ if ($driver !== 'mysql') {
     exit(1);
 }
 
+$localPath = dirname(__DIR__) . '/config/config.local.php';
+if (!is_file($localPath)) {
+    fwrite(STDERR, "MISSING: config/config.local.php\n");
+    fwrite(STDERR, "This file is not in git. Create it on the server:\n");
+    fwrite(STDERR, "  cp config/config.local.php.example config/config.local.php\n");
+    fwrite(STDERR, "  nano config/config.local.php   # set storage.mysql.password\n");
+    exit(1);
+}
+
+$password = (string) ($config['storage']['mysql']['password'] ?? '');
+if ($password === '') {
+    fwrite(STDERR, "storage.mysql.password is empty.\n");
+    fwrite(STDERR, "Edit config/config.local.php and set your aaPanel database password.\n");
+    exit(1);
+}
+
+echo "Using config: config/config.local.php\n";
+echo "Database: " . ($config['storage']['mysql']['database'] ?? '') . "\n";
+echo "User: " . ($config['storage']['mysql']['username'] ?? '') . "\n";
+
 try {
     DatabaseInstaller::ensureSchema($config);
     $mysql = StorageFactory::create($config);
