@@ -60,7 +60,7 @@ require __DIR__ . '/layout/header.php';
 ?>
 
 <h1>Video Provider Settings</h1>
-<p class="admin-note">Configure each video downloader separately — proxy mode, SEO, and blocked channels. Assign services in <a href="services.php">Services</a>.</p>
+<p class="admin-note">Configure each video downloader separately — proxy mode, SEO, and blocked channels. Enable or disable providers here to control what appears on the site.</p>
 
 <?php if ($message): ?><p class="admin-success"><?= Security::escape($message) ?></p><?php endif; ?>
 <?php if ($error): ?><p class="admin-error"><?= Security::escape($error) ?></p><?php endif; ?>

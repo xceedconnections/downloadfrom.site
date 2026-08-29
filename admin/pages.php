@@ -85,7 +85,7 @@ require __DIR__ . '/layout/header.php';
 </p>
 
 <?php if ($pageRows === []): ?>
-<p class="admin-error">No SEO pages available. Enable a service under <a href="services.php">Services</a> and at least one provider.</p>
+<p class="admin-error">No SEO pages available. Enable at least one provider under <a href="providers.php">Video Providers</a> or <a href="audio-providers.php">Audio Providers</a>.</p>
 <?php else: ?>
 
 <table class="admin-table">
@@ -133,7 +133,7 @@ $audioCount = count(array_filter($pageRows, static fn(array $r): bool => $r['ser
     <?= count($pageRows) ?> page(s) total —
     <?= $videoCount ?> live video,
     <?= $audioCount ?> live audio.
-    Assign providers in <a href="services.php">Services</a>.
+    Enable providers under <a href="providers.php">Video Providers</a> and <a href="audio-providers.php">Audio Providers</a>.
 </p>
 
 <?php endif; ?>

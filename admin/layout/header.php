@@ -28,8 +28,6 @@
 
             <a href="dashboard.php">Dashboard</a>
 
-            <a href="services.php">Services</a>
-
             <a href="providers.php">Video Providers</a>
 
             <a href="audio-providers.php">Audio Providers</a>
