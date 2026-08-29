@@ -1,6 +1,176 @@
--- downloadfrom.site — all admin & site data (MySQL required)
--- Import once: mysql -u USER -p DATABASE < database/schema.sql
+-- downloadfrom.site — relational schema (MySQL required)
+-- Tables are created automatically by DatabaseInstaller on first request.
 
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    migration VARCHAR(128) NOT NULL,
+    applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (migration)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS site_settings (
+    setting_key VARCHAR(64) NOT NULL,
+    setting_value TEXT NOT NULL,
+    PRIMARY KEY (setting_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS services (
+    service_id VARCHAR(64) NOT NULL,
+    enabled TINYINT(1) NOT NULL DEFAULT 1,
+    name VARCHAR(255) NOT NULL DEFAULT '',
+    nav_label VARCHAR(255) NOT NULL DEFAULT '',
+    PRIMARY KEY (service_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS service_providers (
+    service_id VARCHAR(64) NOT NULL,
+    provider_id VARCHAR(64) NOT NULL,
+    provider_type ENUM('video', 'audio') NOT NULL,
+    PRIMARY KEY (service_id, provider_id, provider_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS video_providers (
+    provider_id VARCHAR(64) NOT NULL,
+    enabled TINYINT(1) NOT NULL DEFAULT 1,
+    show_as_new TINYINT(1) NOT NULL DEFAULT 0,
+    proxy_enabled TINYINT(1) NOT NULL DEFAULT 0,
+    title VARCHAR(512) NOT NULL DEFAULT '',
+    h1 VARCHAR(255) NOT NULL DEFAULT '',
+    meta_description TEXT,
+    description TEXT,
+    keywords TEXT,
+    slug VARCHAR(128) NOT NULL DEFAULT '',
+    blocked_channels JSON NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (provider_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS audio_providers (
+    provider_id VARCHAR(64) NOT NULL,
+    enabled TINYINT(1) NOT NULL DEFAULT 1,
+    show_as_new TINYINT(1) NOT NULL DEFAULT 0,
+    proxy_enabled TINYINT(1) NOT NULL DEFAULT 0,
+    title VARCHAR(512) NOT NULL DEFAULT '',
+    h1 VARCHAR(255) NOT NULL DEFAULT '',
+    meta_description TEXT,
+    description TEXT,
+    keywords TEXT,
+    slug VARCHAR(128) NOT NULL DEFAULT '',
+    blocked_channels JSON NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (provider_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS ad_settings (
+    id TINYINT NOT NULL DEFAULT 1,
+    enabled TINYINT(1) NOT NULL DEFAULT 0,
+    download_modal_countdown INT NOT NULL DEFAULT 5,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS ads (
+    id VARCHAR(32) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    enabled TINYINT(1) NOT NULL DEFAULT 1,
+    source VARCHAR(32) NOT NULL DEFAULT 'own',
+    type VARCHAR(32) NOT NULL DEFAULT 'banner',
+    network VARCHAR(64) NOT NULL DEFAULT 'custom',
+    priority INT NOT NULL DEFAULT 0,
+    content_title VARCHAR(255) NOT NULL DEFAULT '',
+    content_text TEXT,
+    content_html MEDIUMTEXT,
+    content_image_url VARCHAR(1024) NOT NULL DEFAULT '',
+    content_video_url VARCHAR(1024) NOT NULL DEFAULT '',
+    content_link_url VARCHAR(1024) NOT NULL DEFAULT '',
+    content_alt VARCHAR(255) NOT NULL DEFAULT '',
+    content_client_id VARCHAR(128) NOT NULL DEFAULT '',
+    content_slot_id VARCHAR(128) NOT NULL DEFAULT '',
+    content_network_code MEDIUMTEXT,
+    content_width INT NOT NULL DEFAULT 728,
+    content_height INT NOT NULL DEFAULT 90,
+    popup_delay_seconds INT NOT NULL DEFAULT 3,
+    popup_show_once TINYINT(1) NOT NULL DEFAULT 0,
+    popup_closable TINYINT(1) NOT NULL DEFAULT 1,
+    updated_at INT UNSIGNED NOT NULL DEFAULT 0,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS ad_placements (
+    ad_id VARCHAR(32) NOT NULL,
+    placement VARCHAR(64) NOT NULL,
+    PRIMARY KEY (ad_id, placement),
+    CONSTRAINT fk_ad_placements_ad FOREIGN KEY (ad_id) REFERENCES ads (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS ad_pages (
+    ad_id VARCHAR(32) NOT NULL,
+    page_type VARCHAR(64) NOT NULL,
+    PRIMARY KEY (ad_id, page_type),
+    CONSTRAINT fk_ad_pages_ad FOREIGN KEY (ad_id) REFERENCES ads (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS ad_zone_assignments (
+    placement VARCHAR(64) NOT NULL,
+    ad_id VARCHAR(32) NOT NULL,
+    PRIMARY KEY (placement),
+    CONSTRAINT fk_ad_zone_assignments_ad FOREIGN KEY (ad_id) REFERENCES ads (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS faq_items (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    section VARCHAR(64) NOT NULL DEFAULT 'home',
+    sort_order INT NOT NULL DEFAULT 0,
+    question TEXT NOT NULL,
+    answer MEDIUMTEXT NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_faq_section_order (section, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS admin_users (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    username VARCHAR(64) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_admin_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS analytics_daily (
+    stat_date DATE NOT NULL,
+    total INT UNSIGNED NOT NULL DEFAULT 0,
+    success INT UNSIGNED NOT NULL DEFAULT 0,
+    failed INT UNSIGNED NOT NULL DEFAULT 0,
+    response_sum DOUBLE NOT NULL DEFAULT 0,
+    avg_response_ms DOUBLE NOT NULL DEFAULT 0,
+    PRIMARY KEY (stat_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS analytics_platform_daily (
+    stat_date DATE NOT NULL,
+    platform VARCHAR(64) NOT NULL,
+    request_count INT UNSIGNED NOT NULL DEFAULT 0,
+    PRIMARY KEY (stat_date, platform)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rate_limit_events (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    bucket_hash CHAR(64) NOT NULL,
+    requested_at INT UNSIGNED NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_rate_bucket_time (bucket_hash, requested_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS download_sessions (
+    token CHAR(32) NOT NULL,
+    payload JSON NOT NULL,
+    created_at INT UNSIGNED NOT NULL,
+    expires_at INT UNSIGNED NOT NULL,
+    PRIMARY KEY (token),
+    KEY idx_download_expires (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Legacy key-value store (used only for one-time migration from older installs)
 CREATE TABLE IF NOT EXISTS app_storage (
     store_key VARCHAR(191) NOT NULL,
     payload JSON NOT NULL,
@@ -8,14 +178,3 @@ CREATE TABLE IF NOT EXISTS app_storage (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (store_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Store keys (JSON payload per row):
---
--- settings       Site name, logo, footer, custom codes (head/body),
---                services (header nav), video/audio provider SEO & toggles
--- ads            Ad units, placement map, global ad on/off
--- faq            FAQ questions per page
--- admin          Admin username & password hash
--- analytics      Request statistics
--- rate_limits    IP rate limit counters
--- results/{token} Temporary download session data (expires)

@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace App;
 
 use App\Contracts\StorageInterface;
-use App\Storage\StorageKeys;
+use App\Repositories\AdminRepository;
+use App\Storage\DatabaseConnection;
 
 class AdminAuth
 {
-    private StorageInterface $db;
+    private AdminRepository $adminRepo;
     private RateLimiter $rateLimiter;
 
     public function __construct(StorageInterface $db, RateLimiter $rateLimiter)
     {
-        $this->db = $db;
+        $this->adminRepo = new AdminRepository(DatabaseConnection::get());
         $this->rateLimiter = $rateLimiter;
     }
 
@@ -31,7 +32,7 @@ class AdminAuth
             return ['success' => false, 'message' => $limit['reason']];
         }
 
-        $admin = $this->db->read(StorageKeys::ADMIN, []);
+        $admin = $this->adminRepo->loadPrimary();
         $storedUser = $admin['username'] ?? 'admin';
         $storedHash = $admin['password_hash'] ?? '';
 
@@ -64,17 +65,13 @@ class AdminAuth
         }
     }
 
-    public static function createDefaultAdmin(StorageInterface $db): void
+    public static function createDefaultAdmin(StorageInterface $db, ?AdminRepository $adminRepo = null): void
     {
-        if ($db->exists(StorageKeys::ADMIN)) {
+        $repo = $adminRepo ?? new AdminRepository(DatabaseConnection::get());
+        if (!$repo->isEmpty()) {
             return;
         }
 
-        $db->write(StorageKeys::ADMIN, [
-            'username' => 'admin',
-            'password_hash' => password_hash('changeme123', PASSWORD_DEFAULT),
-            'created' => date('c'),
-            'note' => 'Change this password immediately after first login.',
-        ]);
+        $repo->createDefault('admin', password_hash('changeme123', PASSWORD_DEFAULT));
     }
 }

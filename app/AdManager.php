@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App;
 
 use App\Contracts\StorageInterface;
-use App\Storage\StorageKeys;
+use App\Repositories\AdsRepository;
+use App\Storage\DatabaseConnection;
 
 /**
  * Ad storage, placement logic, and HTML rendering.
@@ -13,6 +14,7 @@ use App\Storage\StorageKeys;
 class AdManager
 {
     private StorageInterface $db;
+    private AdsRepository $repo;
     private array $data;
     private string $baseUrl;
 
@@ -69,8 +71,14 @@ class AdManager
     public function __construct(StorageInterface $db, string $baseUrl)
     {
         $this->db = $db;
+        $this->repo = new AdsRepository(DatabaseConnection::get());
         $this->baseUrl = rtrim($baseUrl, '/');
-        $this->data = $this->db->read(StorageKeys::ADS, $this->defaults());
+        $this->reloadData();
+    }
+
+    private function reloadData(): void
+    {
+        $this->data = $this->repo->loadDocument($this->defaults());
     }
 
     public function isEnabled(): bool
@@ -98,7 +106,11 @@ class AdManager
     {
         $this->data = array_replace_recursive($this->defaults(), $data);
         $this->data['updated'] = time();
-        return $this->db->write(StorageKeys::ADS, $this->data);
+        $saved = $this->repo->saveDocument($this->data, $this->defaults());
+        if ($saved) {
+            $this->reloadData();
+        }
+        return $saved;
     }
 
     /** @return array<string, mixed> */
@@ -119,29 +131,21 @@ class AdManager
 
     public function saveAd(array $ad): bool
     {
-        $ads = $this->allAds();
-        $found = false;
-        foreach ($ads as $i => $existing) {
-            if (($existing['id'] ?? '') === ($ad['id'] ?? '')) {
-                $ads[$i] = $ad;
-                $found = true;
-                break;
-            }
+        $ad['updated'] = time();
+        if (!$this->repo->upsertAd($ad)) {
+            return false;
         }
-        if (!$found) {
-            $ads[] = $ad;
-        }
-        $this->data['ads'] = array_values($ads);
-        return $this->save($this->data);
+        $this->reloadData();
+        return true;
     }
 
     public function deleteAd(string $id): bool
     {
-        $this->data['ads'] = array_values(array_filter(
-            $this->allAds(),
-            static fn(array $ad): bool => ($ad['id'] ?? '') !== $id
-        ));
-        return $this->save($this->data);
+        if (!$this->repo->deleteAd($id)) {
+            return false;
+        }
+        $this->reloadData();
+        return true;
     }
 
     /** @return array<string, string> placement key => ad id */
@@ -162,7 +166,11 @@ class AdManager
             }
         }
         $this->data['placement_map'] = $clean;
-        return $this->save($this->data);
+        if (!$this->repo->savePlacementMap($clean)) {
+            return false;
+        }
+        $this->reloadData();
+        return true;
     }
 
     public function saveGlobalSettings(bool $enabled, int $downloadModalCountdown): bool

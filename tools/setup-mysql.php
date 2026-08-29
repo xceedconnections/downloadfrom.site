@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * MySQL setup — verifies connection, schema, seeds, and legacy JSON import.
+ * MySQL setup — verifies connection, schema, migration, and table counts.
  *
  * Usage: php tools/setup-mysql.php
  */
@@ -12,7 +12,6 @@ $config = require dirname(__DIR__) . '/config/config.php';
 require dirname(__DIR__) . '/app/bootstrap.php';
 
 use App\Storage\StorageFactory;
-use App\Storage\StorageKeys;
 use App\Storage\StorageStatus;
 
 $localPath = dirname(__DIR__) . '/config/config.local.php';
@@ -39,13 +38,12 @@ echo "MySQL connection OK.\n";
 echo "Database: " . ($config['storage']['mysql']['database'] ?? '') . "\n\n";
 
 $summary = StorageStatus::summary($config, $db);
-$labels = StorageStatus::storeLabels();
+$labels = StorageStatus::tableLabels();
 
-foreach (StorageKeys::primaryStores() as $store) {
-    $status = ($summary['stores'][$store] ?? false) ? 'present' : 'missing';
-    $label = $labels[$store] ?? $store;
-    echo "  [{$status}] {$store} — {$label}\n";
+foreach ($labels as $table => $label) {
+    $count = $summary['tables'][$table] ?? 0;
+    echo "  [{$count} rows] {$table} — {$label}\n";
 }
 
-echo "\nTotal app_storage rows: " . $summary['row_count'] . "\n";
-echo "\nDone. Homepage, header, ads, FAQ, and admin all read from MySQL.\n";
+echo "\nLegacy app_storage rows (migration backup): " . $summary['legacy_rows'] . "\n";
+echo "\nDone. Site data is stored in separate relational tables.\n";

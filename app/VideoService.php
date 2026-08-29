@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App;
 
-use App\Contracts\StorageInterface;
-use App\Storage\StorageKeys;
+use App\Repositories\DownloadSessionRepository;
+use App\Storage\DatabaseConnection;
 
 class VideoService
 {
@@ -17,6 +17,7 @@ class VideoService
     private ProviderRegistry $audioRegistry;
     private Analytics $analytics;
     private StorageInterface $db;
+    private DownloadSessionRepository $sessions;
     private Settings $settings;
 
     public function __construct(
@@ -34,6 +35,7 @@ class VideoService
         $this->audioRegistry = $audioRegistry;
         $this->analytics = $analytics;
         $this->db = $db;
+        $this->sessions = new DownloadSessionRepository(DatabaseConnection::get());
         $this->settings = $settings;
     }
 
@@ -280,11 +282,7 @@ class VideoService
     {
         $token = Security::generateToken(16);
         $ttl = 3600;
-        $this->db->write(StorageKeys::result($token), [
-            'data' => $data,
-            'created' => time(),
-            'expires' => time() + $ttl,
-        ]);
+        $this->sessions->store($token, $data, $ttl);
         return $token;
     }
 
@@ -294,18 +292,7 @@ class VideoService
             return null;
         }
 
-        $store = StorageKeys::result($token);
-        $result = $this->db->read($store);
-        if ($result === [] || !isset($result['expires'])) {
-            return null;
-        }
-
-        if (time() > (int) $result['expires']) {
-            $this->db->delete($store);
-            return null;
-        }
-
-        return $result['data'] ?? null;
+        return $this->sessions->get($token);
     }
 
     public function cleanupResult(string $token): bool
@@ -314,15 +301,11 @@ class VideoService
             return false;
         }
 
-        $store = StorageKeys::result($token);
-        if (!$this->db->exists($store)) {
+        if (!$this->sessions->exists($token)) {
             return true;
         }
 
-        $result = $this->db->read($store);
-        $data = is_array($result) ? ($result['data'] ?? []) : [];
-
-        $this->db->delete($store);
+        $data = $this->sessions->take($token) ?? [];
 
         $cacheKey = $data['cache_key'] ?? null;
         if (is_string($cacheKey) && $cacheKey !== '') {

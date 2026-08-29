@@ -10,7 +10,7 @@ use PDOException;
 use Throwable;
 
 /**
- * Creates app_storage table automatically when missing (no manual schema import required).
+ * Creates all relational tables automatically when missing.
  */
 final class DatabaseInstaller
 {
@@ -23,21 +23,50 @@ final class DatabaseInstaller
 
         try {
             $pdo = self::connect($config);
-            $pdo->exec(
-                'CREATE TABLE IF NOT EXISTS app_storage (
-                    store_key VARCHAR(191) NOT NULL,
-                    payload JSON NOT NULL,
-                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    PRIMARY KEY (store_key)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
-            );
+            $schemaFile = dirname(__DIR__, 2) . '/database/schema.sql';
+            if (!is_file($schemaFile)) {
+                Logger::error('database/schema.sql not found');
+                return false;
+            }
+
+            $sql = (string) file_get_contents($schemaFile);
+            foreach (self::splitStatements($sql) as $statement) {
+                if ($statement !== '') {
+                    $pdo->exec($statement);
+                }
+            }
 
             return true;
         } catch (Throwable $e) {
             Logger::error('MySQL schema install failed: ' . $e->getMessage());
             return false;
         }
+    }
+
+    /** @return list<string> */
+    private static function splitStatements(string $sql): array
+    {
+        $lines = preg_split('/\R/', $sql) ?: [];
+        $buffer = '';
+        $statements = [];
+
+        foreach ($lines as $line) {
+            $trimmed = trim($line);
+            if ($trimmed === '' || str_starts_with($trimmed, '--')) {
+                continue;
+            }
+            $buffer .= $line . "\n";
+            if (str_ends_with(rtrim($line), ';')) {
+                $statements[] = trim($buffer);
+                $buffer = '';
+            }
+        }
+
+        if (trim($buffer) !== '') {
+            $statements[] = trim($buffer);
+        }
+
+        return $statements;
     }
 
     public static function connect(array $config): PDO
@@ -60,6 +89,36 @@ final class DatabaseInstaller
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
         ]);
+    }
+
+    /** @return array<string, int> */
+    public static function tableCounts(array $config): array
+    {
+        $tables = [
+            'site_settings',
+            'video_providers',
+            'audio_providers',
+            'services',
+            'ads',
+            'faq_items',
+            'admin_users',
+            'analytics_daily',
+            'rate_limit_events',
+            'download_sessions',
+        ];
+
+        try {
+            $pdo = self::connect($config);
+            $counts = [];
+            foreach ($tables as $table) {
+                $stmt = $pdo->query('SELECT COUNT(*) FROM `' . $table . '`');
+                $counts[$table] = (int) ($stmt ? $stmt->fetchColumn() : 0);
+            }
+
+            return $counts;
+        } catch (PDOException $e) {
+            return [];
+        }
     }
 
     /** @return list<string> */

@@ -6,8 +6,9 @@ require __DIR__ . '/init.php';
 $auth->requireAuth();
 
 use App\PlatformConfig;
+use App\Repositories\AdminRepository;
 use App\Security;
-use App\Storage\StorageKeys;
+use App\Storage\DatabaseConnection;
 use App\UploadHelper;
 
 $message = '';
@@ -50,9 +51,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $logoUrl = PlatformConfig::logoUrl($settings, $baseUrl);
 
             if (!empty($_POST['new_password']) && strlen($_POST['new_password']) >= 8) {
-                $admin = $db->read(StorageKeys::ADMIN, []);
-                $admin['password_hash'] = password_hash($_POST['new_password'], PASSWORD_DEFAULT);
-                $db->write(StorageKeys::ADMIN, $admin);
+                $adminRepo = new AdminRepository(DatabaseConnection::get());
+                $adminRepo->updatePassword(password_hash($_POST['new_password'], PASSWORD_DEFAULT));
                 $message .= ' Password updated.';
             }
         }

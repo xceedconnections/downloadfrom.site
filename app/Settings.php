@@ -5,26 +5,26 @@ declare(strict_types=1);
 namespace App;
 
 use App\Contracts\StorageInterface;
-use App\Storage\StorageKeys;
+use App\Repositories\SettingsRepository;
+use App\Storage\DatabaseConnection;
 
 class Settings
 {
     /**
-     * Site-wide settings persisted in MySQL (store key: settings).
-     * Powers header nav, services, provider visibility/SEO, custom codes, logo, footer.
+     * Site-wide settings persisted in MySQL relational tables.
      */
-    private StorageInterface $db;
+    private SettingsRepository $repo;
     private ?array $cache = null;
 
     public function __construct(StorageInterface $db)
     {
-        $this->db = $db;
+        $this->repo = new SettingsRepository(DatabaseConnection::get());
     }
 
     public function all(): array
     {
         if ($this->cache === null) {
-            $this->cache = $this->db->read(StorageKeys::SETTINGS, $this->defaults());
+            $this->cache = $this->repo->loadAll($this->defaults());
         }
         return $this->cache;
     }
@@ -59,13 +59,13 @@ class Settings
             }
         }
         $this->cache = $all;
-        return $this->db->write(StorageKeys::SETTINGS, $all);
+        return $this->repo->saveAll($all, $this->defaults());
     }
 
     public function save(array $settings): bool
     {
         $this->cache = array_replace_recursive($this->defaults(), $settings);
-        return $this->db->write(StorageKeys::SETTINGS, $this->cache);
+        return $this->repo->saveAll($this->cache, $this->defaults());
     }
 
     private function defaults(): array

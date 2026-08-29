@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Storage;
 
 use App\Contracts\StorageInterface;
-use App\JsonDatabase;
 use RuntimeException;
 
 /**
@@ -33,13 +32,15 @@ final class StorageFactory
 
         if (!DatabaseInstaller::ensureSchema($config)) {
             throw new RuntimeException(
-                'Could not create MySQL table app_storage. Check database credentials in config/config.local.php'
+                'Could not create MySQL tables. Check database credentials in config/config.local.php'
             );
         }
 
+        DatabaseConnection::configure($config);
         $db = new MysqlStorage($config);
         StorageBootstrap::ensureInitialized($db, $config);
         StorageBootstrap::migrateLegacyJsonIfNeeded($db, $config);
+        SchemaMigrator::runIfNeeded(DatabaseConnection::get(), $config, $db);
 
         return $db;
     }

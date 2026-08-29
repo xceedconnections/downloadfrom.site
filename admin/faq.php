@@ -5,11 +5,16 @@ declare(strict_types=1);
 require __DIR__ . '/init.php';
 $auth->requireAuth();
 
+use App\Repositories\FaqRepository;
 use App\Security;
-use App\Storage\StorageKeys;
+use App\Storage\DatabaseConnection;
 
 $message = '';
-$faqData = $db->read(StorageKeys::FAQ, ['home' => []]);
+$faqRepo = new FaqRepository(DatabaseConnection::get());
+$faqData = $faqRepo->loadAll();
+if ($faqData === []) {
+    $faqData = ['home' => []];
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Security::validateCsrfToken($_POST[$config['security']['csrf_token_name']] ?? null, $config)) {
@@ -25,8 +30,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $homeFaq[] = ['q' => $q, 'a' => $a];
             }
         }
-        $faqData['home'] = $homeFaq;
-        $db->write(StorageKeys::FAQ, $faqData);
+        $faqRepo->saveSection('home', $homeFaq);
+        $faqData = $faqRepo->loadAll();
         $message = 'FAQ saved successfully.';
     }
 }

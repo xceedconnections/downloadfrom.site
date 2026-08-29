@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App;
 
-use App\Contracts\StorageInterface;
-use App\Storage\StorageKeys;
+use App\Repositories\FaqRepository;
+use App\Storage\DatabaseConnection;
 
 class Router
 {
@@ -354,12 +354,13 @@ class Router
 
     private function loadFaq(string $section): array
     {
-        $data = $this->storage->read(StorageKeys::FAQ, []);
-        if (!is_array($data) || !isset($data[$section])) {
+        $repo = new FaqRepository(DatabaseConnection::get());
+        $items = $repo->loadSection($section);
+        if ($items === []) {
             return $this->defaultHomeFaq();
         }
 
-        return $data[$section];
+        return $items;
     }
 
     private function defaultHomeFaq(): array

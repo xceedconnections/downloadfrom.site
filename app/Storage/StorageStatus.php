@@ -9,35 +9,34 @@ use App\Contracts\StorageInterface;
 /** Reports MySQL storage health for admin dashboard. */
 final class StorageStatus
 {
-    /** @return array{driver: string, database: string, host: string, stores: array<string, bool>, row_count: int} */
+    /** @return array{driver: string, database: string, host: string, tables: array<string, int>, legacy_rows: int} */
     public static function summary(array $config, StorageInterface $db): array
     {
         $mysql = $config['storage']['mysql'] ?? [];
-        $stores = [];
-
-        foreach (StorageKeys::primaryStores() as $key) {
-            $stores[$key] = $db->exists($key);
-        }
 
         return [
             'driver' => (string) ($config['storage']['driver'] ?? 'mysql'),
             'database' => (string) ($mysql['database'] ?? ''),
             'host' => (string) ($mysql['host'] ?? '127.0.0.1'),
-            'stores' => $stores,
-            'row_count' => count(DatabaseInstaller::listStores($config)),
+            'tables' => DatabaseInstaller::tableCounts($config),
+            'legacy_rows' => count(DatabaseInstaller::listStores($config)),
         ];
     }
 
-    /** Human labels for primary store keys. */
-    public static function storeLabels(): array
+    /** Human labels for relational tables. */
+    public static function tableLabels(): array
     {
         return [
-            StorageKeys::SETTINGS => 'Site settings, services, provider SEO',
-            StorageKeys::ADS => 'Ads & placement map',
-            StorageKeys::FAQ => 'FAQ content',
-            StorageKeys::ADMIN => 'Admin login',
-            StorageKeys::ANALYTICS => 'Analytics',
-            StorageKeys::RATE_LIMITS => 'Rate limits',
+            'site_settings' => 'Site settings',
+            'video_providers' => 'Video providers',
+            'audio_providers' => 'Audio providers',
+            'services' => 'Services',
+            'ads' => 'Ads (one row per ad)',
+            'faq_items' => 'FAQ items',
+            'admin_users' => 'Admin users',
+            'analytics_daily' => 'Analytics (daily)',
+            'rate_limit_events' => 'Rate limit events',
+            'download_sessions' => 'Download sessions',
         ];
     }
 }
