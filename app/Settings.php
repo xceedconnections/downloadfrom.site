@@ -9,6 +9,10 @@ use App\Storage\StorageKeys;
 
 class Settings
 {
+    /**
+     * Site-wide settings persisted in MySQL (store key: settings).
+     * Powers header nav, services, provider visibility/SEO, custom codes, logo, footer.
+     */
     private StorageInterface $db;
     private ?array $cache = null;
 

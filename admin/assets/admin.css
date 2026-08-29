@@ -539,3 +539,26 @@
     font-size: .8125rem;
     line-height: 1.45;
 }
+
+.admin-storage-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.5rem;
+}
+
+.admin-storage-list li {
+    padding: .35rem 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.admin-storage-list .admin-ok {
+    color: #16a34a;
+    font-weight: 600;
+    margin-left: .5rem;
+}
+
+.admin-storage-list .admin-warn {
+    color: #dc2626;
+    font-weight: 600;
+    margin-left: .5rem;
+}

@@ -166,7 +166,7 @@ Point Apache/Nginx to the **project root** (where `index.php` lives):
 
 - MySQL storage for all admin data (settings, ads, FAQ, admin users, analytics)
 
-- JSON file fallback for development (set `storage.driver` to `json` in config.local.php)
+- Provider plugin code in `app/video-provider/` with per-provider settings in MySQL
 
 - Rate limiting, CSRF, SSRF protection
 
@@ -206,11 +206,35 @@ chown -R www-data:www-data storage/
 
 
 
-## MySQL Storage (Production)
+## MySQL Storage (required)
 
 
 
-All admin-managed data is stored in MySQL (`app_storage` table): **settings**, **ads**, **FAQ**, **admin login**, **analytics**, and **rate limits**. Git pulls update code only — they do not overwrite your live admin settings.
+**The entire site runs on MySQL.** Every admin change is saved to the `app_storage` table. File-based JSON storage is no longer used for live data.
+
+
+
+| MySQL key | What it powers on the public site |
+
+|-----------|-------------------------------------|
+
+| `settings` | Site name, logo, footer, header **services & platforms**, provider SEO/slugs, custom codes |
+
+| `ads` | All ad zones & placement map |
+
+| `faq` | FAQ pages |
+
+| `admin` | Admin login |
+
+| `analytics` | Dashboard stats |
+
+| `rate_limits` | Request throttling |
+
+| `results/{token}` | Temporary download sessions |
+
+
+
+Provider **plugins** (YouTube, TikTok, etc.) are PHP code in `app/video-provider/` — admin **settings** for each provider (enabled, SEO, proxy) live in MySQL under `settings`.
 
 
 

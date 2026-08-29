@@ -40,7 +40,7 @@ $config = [
     ],
 
     'storage' => [
-        // Driver: "mysql" (recommended) or "json" (legacy file storage in storage/data/)
+        // MySQL is required — all admin data lives in app_storage (see database/schema.sql)
         'driver' => 'mysql',
         'path' => dirname(__DIR__) . '/storage/data',
         'logs' => dirname(__DIR__) . '/storage/logs',

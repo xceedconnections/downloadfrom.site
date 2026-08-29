@@ -8,7 +8,6 @@ use App\AdManager;
 use App\Analytics;
 use App\Cache;
 use App\Storage\StorageFactory;
-use App\Storage\StorageBootstrap;
 use App\Logger;
 use App\PlatformConfig;
 use App\Provider\ProviderManager;
@@ -27,7 +26,6 @@ Security::setHeaders($config);
 
 $providerManager = ProviderManager::boot($config);
 $db = StorageFactory::create($config);
-StorageBootstrap::ensureInitialized($db, $config);
 $settings = new Settings($db);
 $adManager = new AdManager($db, $config['app']['url']);
 $videoPlatforms = PlatformConfig::mergePlatforms($providerManager->getVideoPlatforms(), $settings, 'video');

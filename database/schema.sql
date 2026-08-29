@@ -1,6 +1,5 @@
--- downloadfrom.site application storage schema (MySQL 5.7+ / MariaDB 10.2+)
--- Create database in aaPanel, then import:
---   mysql -u downloadfrom.site -p downloadfrom.site < database/schema.sql
+-- downloadfrom.site — all admin & site data (MySQL required)
+-- Import once: mysql -u USER -p DATABASE < database/schema.sql
 
 CREATE TABLE IF NOT EXISTS app_storage (
     store_key VARCHAR(191) NOT NULL,
@@ -10,11 +9,13 @@ CREATE TABLE IF NOT EXISTS app_storage (
     PRIMARY KEY (store_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Logical keys used by the app:
---   settings
---   faq
---   ads
---   admin
---   analytics
---   rate_limits
---   results/{32-char-hex-token}
+-- Store keys (JSON payload per row):
+--
+-- settings       Site name, logo, footer, custom codes (head/body),
+--                services (header nav), video/audio provider SEO & toggles
+-- ads            Ad units, placement map, global ad on/off
+-- faq            FAQ questions per page
+-- admin          Admin username & password hash
+-- analytics      Request statistics
+-- rate_limits    IP rate limit counters
+-- results/{token} Temporary download session data (expires)
