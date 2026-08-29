@@ -148,24 +148,6 @@ $siteName = $settings ? (string) ($settings->get('site_name') ?: $config['app'][
 
                 <div class="bh-header-utils">
 
-                    <div class="bh-util-group bh-util-social">
-
-                        <span class="bh-util-label">FOLLOW US ON</span>
-
-                        <div class="bh-social-icons">
-
-                            <a href="https://www.facebook.com/" class="bh-social-link bh-social-fb" target="_blank" rel="noopener noreferrer" aria-label="Facebook">f</a>
-
-                            <a href="https://twitter.com/" class="bh-social-link bh-social-tw" target="_blank" rel="noopener noreferrer" aria-label="Twitter">𝕏</a>
-
-                            <a href="https://wa.me/" class="bh-social-link bh-social-wa" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">W</a>
-
-                            <a href="https://www.youtube.com/" class="bh-social-link bh-social-yt" target="_blank" rel="noopener noreferrer" aria-label="YouTube">▶</a>
-
-                        </div>
-
-                    </div>
-
                     <a href="<?= App\Security::escape($baseUrl) ?>/contact" class="bh-util-feedback">
 
                         <span class="bh-util-label">FEEDBACK</span>
