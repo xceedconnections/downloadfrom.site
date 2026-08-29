@@ -1,0 +1,185 @@
+{
+    "site_name": "DownloadFrom.Site",
+    "site_url": "http://localhost/downloadfrom",
+    "analytics_enabled": true,
+    "maintenance_mode": false,
+    "admin_email": "admin@example.com",
+    "footer_text": "Free online video URL tool for supported platforms. Retrieve public metadata and permitted viewing options.",
+    "logo_path": "",
+    "services": {
+        "download-video": {
+            "enabled": true,
+            "name": "Video Converter",
+            "nav_label": "Video Converter",
+            "providers": []
+        },
+        "download-audio": {
+            "enabled": true,
+            "name": "Audio Converter",
+            "nav_label": "Audio Converter",
+            "providers": []
+        }
+    },
+    "providers": {
+        "youtube": {
+            "enabled": true,
+            "show_as_new": true,
+            "proxy_enabled": false,
+            "title": "YouTube Video Link Tool – Get YouTube Video Information",
+            "h1": "YouTube Video Link Tool",
+            "meta_description": "Paste a YouTube URL to download videos in multiple qualities (1080p, 720p, 480p, and more) or view metadata.",
+            "description": "Download YouTube videos in HD and other quality options. Paste any public YouTube, youtu.be, or Shorts link.",
+            "keywords": "youtube video, youtube link, youtube metadata, youtube shorts",
+            "slug": "youtube-downloader",
+            "blocked_channels": []
+        },
+        "dailymotion": {
+            "enabled": false,
+            "proxy_enabled": false,
+            "title": "Dailymotion Video Link Tool – Get Dailymotion Video Information",
+            "h1": "Dailymotion Video Link Tool",
+            "meta_description": "Paste a Dailymotion URL to retrieve public video metadata and thumbnail information.",
+            "description": "Use our tool to fetch Dailymotion video title, author, and thumbnail through permitted public endpoints.",
+            "keywords": "dailymotion video, dailymotion link",
+            "slug": "dailymotion-downloader",
+            "blocked_channels": []
+        },
+        "facebook": {
+            "enabled": false,
+            "proxy_enabled": false,
+            "title": "Facebook Video Link Tool – Facebook Video Information",
+            "h1": "Facebook Video Link Tool",
+            "meta_description": "Paste a Facebook video URL to identify the content and view permitted public information.",
+            "description": "Facebook videos require authentication for most content. Our tool validates your URL and provides guidance on viewing through Facebook's official platform.",
+            "keywords": "facebook video, facebook link",
+            "slug": "facebook-video-downloader",
+            "blocked_channels": []
+        },
+        "instagram": {
+            "enabled": false,
+            "proxy_enabled": false,
+            "title": "Instagram Video Link Tool – Instagram Reels & Video Info",
+            "h1": "Instagram Video Link Tool",
+            "meta_description": "Submit an Instagram video or Reels URL. We provide platform guidance and permitted public information where available.",
+            "description": "Instagram restricts third-party access to video content. Our tool identifies Instagram URLs and provides appropriate guidance along with any publicly available metadata.",
+            "keywords": "instagram video, instagram reels, instagram link",
+            "slug": "instagram-video-downloader",
+            "blocked_channels": []
+        },
+        "linkedin": {
+            "enabled": false,
+            "proxy_enabled": false,
+            "title": "LinkedIn Video Link Tool",
+            "h1": "LinkedIn Video Link Tool",
+            "meta_description": "Paste a LinkedIn video URL to identify content and view permitted information.",
+            "description": "Submit a LinkedIn video link for platform identification and guidance.",
+            "keywords": "linkedin video, linkedin link",
+            "slug": "linkedin-video-downloader",
+            "blocked_channels": []
+        },
+        "pinterest": {
+            "enabled": false,
+            "proxy_enabled": false,
+            "title": "Pinterest Video Link Tool – Pin Video Information",
+            "h1": "Pinterest Video Link Tool",
+            "meta_description": "Paste a Pinterest pin URL to identify video content and view permitted information.",
+            "description": "Submit a Pinterest pin URL containing video. We identify the platform and provide appropriate viewing guidance.",
+            "keywords": "pinterest video, pinterest pin",
+            "slug": "pinterest-video-downloader",
+            "blocked_channels": []
+        },
+        "reddit": {
+            "enabled": false,
+            "proxy_enabled": false,
+            "title": "Reddit Video Link Tool – Reddit Video Information",
+            "h1": "Reddit Video Link Tool",
+            "meta_description": "Paste a Reddit post URL with video to retrieve public metadata and viewing options.",
+            "description": "Reddit hosts video content across many communities. Our tool fetches publicly available post metadata through Reddit's JSON endpoints for supported links.",
+            "keywords": "reddit video, reddit download, reddit link",
+            "slug": "reddit-video-downloader",
+            "blocked_channels": []
+        },
+        "snapchat": {
+            "enabled": false,
+            "proxy_enabled": false,
+            "title": "Snapchat Video Link Tool",
+            "h1": "Snapchat Video Link Tool",
+            "meta_description": "Paste a Snapchat URL to identify content and view permitted information.",
+            "description": "Submit a Snapchat link. We identify the platform and provide viewing guidance.",
+            "keywords": "snapchat video, snapchat link",
+            "slug": "snapchat-video-downloader",
+            "blocked_channels": []
+        },
+        "twitch": {
+            "enabled": false,
+            "proxy_enabled": false,
+            "title": "Twitch Video Link Tool – Clips & VOD Information",
+            "h1": "Twitch Video Link Tool",
+            "meta_description": "Paste a Twitch clip or VOD URL to retrieve public metadata and viewing links.",
+            "description": "Twitch clips and VODs can be identified and metadata retrieved through permitted public methods.",
+            "keywords": "twitch clip, twitch vod, twitch video",
+            "slug": "twitch-video-downloader",
+            "blocked_channels": []
+        },
+        "twitter": {
+            "enabled": false,
+            "proxy_enabled": false,
+            "title": "X / Twitter Video Link Tool – Video Information",
+            "h1": "X (Twitter) Video Link Tool",
+            "meta_description": "Paste an X or Twitter post URL containing video to retrieve permitted public metadata.",
+            "description": "Submit an X/Twitter status URL with embedded video. We fetch available public metadata through permitted oEmbed endpoints where supported.",
+            "keywords": "twitter video, x video, twitter link",
+            "slug": "twitter-video-downloader",
+            "blocked_channels": []
+        },
+        "vimeo": {
+            "enabled": false,
+            "proxy_enabled": false,
+            "title": "Vimeo Video Link Tool – Get Vimeo Video Information",
+            "h1": "Vimeo Video Link Tool",
+            "meta_description": "Paste a Vimeo URL to retrieve video metadata, duration, and thumbnail via Vimeo's public oEmbed API.",
+            "description": "Vimeo provides a rich oEmbed API for public videos. Our tool retrieves title, author, duration, and thumbnail for supported Vimeo links.",
+            "keywords": "vimeo video, vimeo link, vimeo metadata",
+            "slug": "vimeo-downloader",
+            "blocked_channels": []
+        }
+    },
+    "audio_providers": {
+        "soundcloud": {
+            "enabled": false,
+            "show_as_new": false,
+            "proxy_enabled": false,
+            "title": "SoundCloud to MP3 Downloader",
+            "h1": "SoundCloud MP3 Downloader",
+            "meta_description": "Download MP3 from SoundCloud tracks. Paste a SoundCloud URL to get direct audio download links.",
+            "description": "Download MP3 audio from public SoundCloud tracks and playlists.",
+            "keywords": "soundcloud mp3, soundcloud downloader, soundcloud to mp3",
+            "slug": "soundcloud-mp3",
+            "blocked_channels": []
+        },
+        "tiktok": {
+            "enabled": false,
+            "show_as_new": false,
+            "proxy_enabled": false,
+            "title": "TikTok to MP3 Downloader",
+            "h1": "TikTok MP3 Downloader",
+            "meta_description": "Extract MP3 audio from TikTok videos. Paste a TikTok link to download the audio track.",
+            "description": "Download MP3 audio from TikTok videos without watermark when available.",
+            "keywords": "tiktok mp3, tiktok audio download, tiktok to mp3",
+            "slug": "tiktok-mp3",
+            "blocked_channels": []
+        },
+        "youtube": {
+            "enabled": true,
+            "show_as_new": true,
+            "proxy_enabled": false,
+            "title": "YouTube to MP3 Downloader – Convert YouTube Videos to MP3",
+            "h1": "YouTube to MP3 Downloader",
+            "meta_description": "Paste a YouTube URL to download MP3 audio. Free YouTube to MP3 converter with multiple quality options.",
+            "description": "Download MP3 audio from YouTube videos. Paste any public YouTube, youtu.be, or Shorts link.",
+            "keywords": "youtube mp3, youtube to mp3, youtube audio download",
+            "slug": "youtube-to-mp3-converter-downloader",
+            "blocked_channels": []
+        }
+    }
+}

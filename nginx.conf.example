@@ -1,0 +1,36 @@
+# Nginx configuration example
+# Document root = project root (where index.php lives)
+
+server {
+    listen 80;
+    server_name downloadfrom.site;
+    root /var/www/downloadfrom;
+    index index.php;
+
+    location ~ ^/(storage|app|config|templates)/ {
+        deny all;
+        return 404;
+    }
+
+    location /admin {
+        try_files $uri $uri/ /admin/index.php?$query_string;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/run/php/php8.2-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~* \.(css|js|png|jpg|jpeg|gif|ico|webp|svg|woff2?)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml;
+}

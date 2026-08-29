@@ -1,0 +1,136 @@
+{
+    "enabled": true,
+    "download_modal_countdown": 5,
+    "updated": 1787922055,
+    "network_settings": {
+        "adsense": {
+            "client_id": "",
+            "slot_id": "",
+            "network_code": "",
+            "width": 728,
+            "height": 90
+        },
+        "adsense_auto": {
+            "client_id": "",
+            "slot_id": "",
+            "network_code": "",
+            "width": 0,
+            "height": 0
+        },
+        "gam": {
+            "client_id": "",
+            "slot_id": "",
+            "network_code": "",
+            "width": 728,
+            "height": 90
+        },
+        "medianet": {
+            "client_id": "",
+            "slot_id": "",
+            "network_code": "",
+            "width": 728,
+            "height": 90
+        },
+        "propeller": {
+            "client_id": "",
+            "slot_id": "",
+            "network_code": "",
+            "width": 728,
+            "height": 90
+        },
+        "adsterra": {
+            "client_id": "",
+            "slot_id": "",
+            "network_code": "",
+            "width": 728,
+            "height": 90
+        },
+        "ezoic": {
+            "client_id": "",
+            "slot_id": "",
+            "network_code": "",
+            "width": 728,
+            "height": 90
+        },
+        "amazon": {
+            "client_id": "",
+            "slot_id": "",
+            "network_code": "",
+            "width": 728,
+            "height": 90
+        },
+        "taboola": {
+            "client_id": "",
+            "slot_id": "",
+            "network_code": "",
+            "width": 728,
+            "height": 90
+        },
+        "outbrain": {
+            "client_id": "",
+            "slot_id": "",
+            "network_code": "",
+            "width": 728,
+            "height": 90
+        },
+        "custom": {
+            "client_id": "",
+            "slot_id": "",
+            "network_code": "",
+            "width": 728,
+            "height": 90
+        }
+    },
+    "ads": [
+        {
+            "id": "60a75f1acc409929",
+            "name": "ownmain",
+            "enabled": true,
+            "source": "own",
+            "type": "text",
+            "network": "custom",
+            "placements": [
+                "header_banner",
+                "footer_banner",
+                "home_hero_sidebar",
+                "home_after_form",
+                "home_middle",
+                "home_bottom",
+                "platform_hero_sidebar",
+                "result_top",
+                "result_sidebar",
+                "result_bottom",
+                "platform_top",
+                "platform_bottom",
+                "download_modal"
+            ],
+            "pages": [
+                "all",
+                "home",
+                "result",
+                "platform"
+            ],
+            "priority": 13,
+            "content": {
+                "title": "downlaod softwares free",
+                "text": "download all freee softwaresa",
+                "html": "free software downloading system.",
+                "image_url": "",
+                "video_url": "",
+                "link_url": "",
+                "alt": "Advertisement",
+                "network_code": "",
+                "client_id": "",
+                "slot_id": "",
+                "width": 728,
+                "height": 90
+            },
+            "popup": {
+                "delay_seconds": 3,
+                "show_once_per_session": false,
+                "closable": true
+            },
+            "updated": 1787920595
+        }
+    ]
+}

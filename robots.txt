@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin/
+Disallow: /api/
+Disallow: /download/
+Disallow: /result/
+Disallow: /storage/
+Disallow: /app/
+Disallow: /config/
+Disallow: /templates/
+
+Sitemap: http://localhost/downloadfrom/sitemap.php

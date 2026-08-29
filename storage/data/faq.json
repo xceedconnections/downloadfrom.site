@@ -1,0 +1,20 @@
+{
+    "home": [
+        {
+            "q": "Is this service free?",
+            "a": "Yes, our video URL tool is free to use for public video links."
+        },
+        {
+            "q": "Which platforms are supported?",
+            "a": "We support YouTube, TikTok, Vimeo, Dailymotion, Instagram, Facebook, X/Twitter, Reddit, Twitch, Pinterest, and more."
+        },
+        {
+            "q": "Can I download any video?",
+            "a": "No. We only provide information and links permitted by each platform. Direct downloading is not available where platforms prohibit it."
+        },
+        {
+            "q": "Do you store my URLs?",
+            "a": "Results are temporarily cached to improve performance and expire automatically. We do not store personal information."
+        }
+    ]
+}
