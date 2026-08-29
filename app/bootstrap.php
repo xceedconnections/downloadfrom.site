@@ -38,7 +38,12 @@ set_exception_handler(static function (Throwable $e) use ($config): void {
     if ($config['app']['debug']) {
         echo '<h1>Application Error</h1><pre>' . htmlspecialchars($e->getMessage()) . '</pre>';
     } else {
-        require dirname(__DIR__) . '/templates/error.php';
+        $errorMessage = 'An unexpected error occurred. Please try again in a few moments.';
+        if (is_file(dirname(__DIR__) . '/templates/error-minimal.php')) {
+            require dirname(__DIR__) . '/templates/error-minimal.php';
+        } else {
+            echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Error</title></head><body><h1>Something went wrong</h1><p>Please try again later.</p></body></html>';
+        }
     }
     exit;
 });

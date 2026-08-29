@@ -15,7 +15,6 @@ class Router
     private Validator $validator;
     private RateLimiter $rateLimiter;
     private Settings $settings;
-    private StorageInterface $storage;
     private array $videoPlatforms;
     private array $audioPlatforms;
     /** @var array<int, array<string, mixed>> */
@@ -32,8 +31,7 @@ class Router
         array $videoPlatforms,
         array $audioPlatforms,
         array $servicesNav,
-        AdManager $adManager,
-        StorageInterface $storage
+        AdManager $adManager
     ) {
         $this->config = $config;
         $this->seo = $seo;
@@ -41,7 +39,6 @@ class Router
         $this->validator = $validator;
         $this->rateLimiter = $rateLimiter;
         $this->settings = $settings;
-        $this->storage = $storage;
         $this->videoPlatforms = $videoPlatforms;
         $this->audioPlatforms = $audioPlatforms;
         $this->servicesNav = $servicesNav;

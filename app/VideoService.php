@@ -16,7 +16,6 @@ class VideoService
     private ProviderRegistry $videoRegistry;
     private ProviderRegistry $audioRegistry;
     private Analytics $analytics;
-    private StorageInterface $db;
     private DownloadSessionRepository $sessions;
     private Settings $settings;
 
@@ -26,7 +25,6 @@ class VideoService
         ProviderRegistry $videoRegistry,
         ProviderRegistry $audioRegistry,
         Analytics $analytics,
-        StorageInterface $db,
         Settings $settings
     ) {
         $this->detector = $detector;
@@ -34,7 +32,6 @@ class VideoService
         $this->videoRegistry = $videoRegistry;
         $this->audioRegistry = $audioRegistry;
         $this->analytics = $analytics;
-        $this->db = $db;
         $this->sessions = new DownloadSessionRepository(DatabaseConnection::get());
         $this->settings = $settings;
     }

@@ -44,7 +44,6 @@ $videoService = new VideoService(
     $providerManager->getVideoRegistry(),
     $providerManager->getAudioRegistry(),
     $analytics,
-    $db,
     $settings
 );
 
@@ -58,8 +57,7 @@ $router = new Router(
     $videoPlatforms,
     $audioPlatforms,
     $servicesNav,
-    $adManager,
-    $db
+    $adManager
 );
 
 $uri = $_SERVER['REQUEST_URI'] ?? '/';
