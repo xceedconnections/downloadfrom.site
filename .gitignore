@@ -1,4 +1,6 @@
 /storage/data/admin.json
+/storage/data/*.json
+!/storage/data/.gitkeep
 /config/config.local.php
 /storage/cache/*
 !/storage/cache/.gitkeep

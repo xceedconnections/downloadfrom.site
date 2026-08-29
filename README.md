@@ -164,7 +164,9 @@ Point Apache/Nginx to the **project root** (where `index.php` lives):
 
 - YouTube, TikTok, Vimeo, Dailymotion, Reddit, Instagram, Facebook, Twitter/X
 
-- JSON storage (no MySQL)
+- MySQL storage for all admin data (settings, ads, FAQ, admin users, analytics)
+
+- JSON file fallback for development (set `storage.driver` to `json` in config.local.php)
 
 - Rate limiting, CSRF, SSRF protection
 
@@ -204,11 +206,60 @@ chown -R www-data:www-data storage/
 
 
 
+## MySQL Storage (Production)
+
+
+
+All admin-managed data is stored in MySQL (`app_storage` table): **settings**, **ads**, **FAQ**, **admin login**, **analytics**, and **rate limits**. Git pulls update code only — they do not overwrite your live admin settings.
+
+
+
+### aaPanel setup
+
+
+
+1. Create database `downloadfrom.site` and user in aaPanel
+2. Import schema:
+
+```bash
+mysql -u downloadfrom.site -p downloadfrom.site < database/schema.sql
+```
+
+3. Copy `config/config.local.php.example` → `config/config.local.php` and set your DB password:
+
+```php
+'storage' => [
+    'driver' => 'mysql',
+    'mysql' => [
+        'host' => '127.0.0.1',
+        'database' => 'downloadfrom.site',
+        'username' => 'downloadfrom.site',
+        'password' => 'YOUR_DB_PASSWORD',
+    ],
+],
+```
+
+4. Run once (SSH):
+
+```bash
+php tools/setup-mysql.php
+```
+
+5. Open the site — empty stores are auto-seeded from `database/seeds/` on first request.
+
+
+
+To migrate existing JSON files from an older install, `setup-mysql.php` imports any `storage/data/*.json` that are not already in MySQL.
+
+
+
 ## Production Checklist
 
 
 
-- [ ] Set `config/config.local.php` with your domain
+- [ ] Set `config/config.local.php` with MySQL credentials and domain
+
+- [ ] Import `database/schema.sql` and run `php tools/setup-mysql.php`
 
 - [ ] Enable HTTPS redirect in `.htaccess`
 

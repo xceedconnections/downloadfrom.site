@@ -6,6 +6,7 @@ $config = require dirname(__DIR__) . '/app/bootstrap.php';
 
 use App\AdminAuth;
 use App\Storage\StorageFactory;
+use App\Storage\StorageBootstrap;
 use App\Logger;
 use App\PlatformConfig;
 use App\Provider\ProviderManager;
@@ -18,7 +19,7 @@ Logger::init($config);
 Security::initSession($config);
 
 $db = StorageFactory::create($config);
-AdminAuth::createDefaultAdmin($db);
+StorageBootstrap::ensureInitialized($db, $config);
 $rateLimiter = new RateLimiter($db, $config);
 $auth = new AdminAuth($db, $rateLimiter);
 $settings = new Settings($db);

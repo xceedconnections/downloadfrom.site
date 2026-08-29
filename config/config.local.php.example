@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 /**
  * Local configuration overrides.
- * Copy this file to config.local.php and customize for your environment.
+ * Copy this file to config.local.php and customize for your server.
+ * config.local.php is gitignored — DB password and live settings stay on the server.
  */
 
 return [
@@ -13,15 +14,19 @@ return [
         'debug' => false,
     ],
     'storage' => [
-        // Switch to MySQL after importing database/schema.sql and running tools/migrate-json-to-mysql.php
-        // 'driver' => 'mysql',
-        // 'mysql' => [
-        //     'host' => '127.0.0.1',
-        //     'port' => 3306,
-        //     'database' => 'videolink',
-        //     'username' => 'root',
-        //     'password' => '',
-        // ],
+        'driver' => 'mysql',
+        'mysql' => [
+            'host' => '127.0.0.1',
+            'port' => 3306,
+            'database' => 'downloadfrom.site',
+            'username' => 'downloadfrom.site',
+            'password' => 'YOUR_DB_PASSWORD',
+        ],
+    ],
+    'ytdlp' => [
+        'path' => '/www/wwwroot/downloadfrom.site/bin/yt-dlp',
+        'node_path' => '/usr/bin/node',
+        'enabled' => true,
     ],
     'api_keys' => [
         'youtube' => '',

@@ -1,5 +1,6 @@
--- VideoLink application storage schema (MySQL 5.7+ / MariaDB 10.2+)
--- Import: mysql -u root -p videolink < database/schema.sql
+-- downloadfrom.site application storage schema (MySQL 5.7+ / MariaDB 10.2+)
+-- Create database in aaPanel, then import:
+--   mysql -u downloadfrom.site -p downloadfrom.site < database/schema.sql
 
 CREATE TABLE IF NOT EXISTS app_storage (
     store_key VARCHAR(191) NOT NULL,

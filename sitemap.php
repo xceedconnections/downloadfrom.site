@@ -5,6 +5,7 @@ declare(strict_types=1);
 $config = require __DIR__ . '/app/bootstrap.php';
 
 use App\Storage\StorageFactory;
+use App\Storage\StorageBootstrap;
 use App\PlatformConfig;
 use App\Provider\ProviderManager;
 use App\Seo;
@@ -12,6 +13,7 @@ use App\Settings;
 
 $providerManager = ProviderManager::boot($config);
 $db = StorageFactory::create($config);
+StorageBootstrap::ensureInitialized($db, $config);
 $settings = new Settings($db);
 $videoPlatforms = PlatformConfig::mergePlatforms($providerManager->getVideoPlatforms(), $settings, 'video');
 $audioPlatforms = PlatformConfig::mergePlatforms($providerManager->getAudioPlatforms(), $settings, 'audio');

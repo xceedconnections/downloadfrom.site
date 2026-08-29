@@ -40,15 +40,15 @@ $config = [
     ],
 
     'storage' => [
-        // Driver: "json" (default, file-based) or "mysql" (see database/schema.sql)
-        'driver' => 'json',
+        // Driver: "mysql" (recommended) or "json" (legacy file storage in storage/data/)
+        'driver' => 'mysql',
         'path' => dirname(__DIR__) . '/storage/data',
         'logs' => dirname(__DIR__) . '/storage/logs',
         'mysql' => [
             'host' => '127.0.0.1',
             'port' => 3306,
-            'database' => 'videolink',
-            'username' => 'root',
+            'database' => 'downloadfrom.site',
+            'username' => 'downloadfrom.site',
             'password' => '',
         ],
     ],
