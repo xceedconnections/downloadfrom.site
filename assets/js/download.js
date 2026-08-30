@@ -4,7 +4,10 @@
     var cfg = window.__DOWNLOAD_CONFIG__ || {};
     var countdownSec = Math.max(0, parseInt(cfg.countdown, 10) || 0);
     var modalHtmlByService = cfg.modalHtmlByService || {};
+    var openerLinksByService = cfg.openerLinksByService || {};
     var defaultModalHtml = cfg.modalHtml || modalHtmlByService.default || '';
+    var defaultOpenerLinks = cfg.openerLinks || openerLinksByService.default || [];
+    var downloadBtnLabel = 'Download Video Now';
 
     function resolveModalHtml(serviceType) {
         var key = (serviceType || '').toLowerCase();
@@ -17,6 +20,17 @@
         return modalHtmlByService.default || '';
     }
 
+    function resolveOpenerLinks(serviceType) {
+        var key = (serviceType || '').toLowerCase();
+        if (key && Array.isArray(openerLinksByService[key]) && openerLinksByService[key].length > 0) {
+            return openerLinksByService[key];
+        }
+        if (Array.isArray(defaultOpenerLinks) && defaultOpenerLinks.length > 0) {
+            return defaultOpenerLinks;
+        }
+        return Array.isArray(openerLinksByService.default) ? openerLinksByService.default : [];
+    }
+
     function hasAnyModalAds() {
         if (defaultModalHtml.trim() !== '') {
             return true;
@@ -26,7 +40,16 @@
         });
     }
 
-    var useGate = cfg.useGate !== false && (hasAnyModalAds() || countdownSec > 0);
+    function hasAnyOpenerLinks() {
+        if (Array.isArray(defaultOpenerLinks) && defaultOpenerLinks.length > 0) {
+            return true;
+        }
+        return Object.keys(openerLinksByService).some(function (key) {
+            return Array.isArray(openerLinksByService[key]) && openerLinksByService[key].length > 0;
+        });
+    }
+
+    var useGate = cfg.useGate !== false && (hasAnyModalAds() || hasAnyOpenerLinks() || countdownSec > 0);
 
     function startDownload(url, target) {
         if (target === '_blank') {
@@ -34,6 +57,14 @@
         } else {
             window.location.href = url;
         }
+    }
+
+    function openOpenerLinks(serviceType) {
+        resolveOpenerLinks(serviceType).forEach(function (link) {
+            if (link && String(link).indexOf('http') === 0) {
+                window.open(link, '_blank', 'noopener,noreferrer');
+            }
+        });
     }
 
     function activateModalScripts(container) {
@@ -63,7 +94,8 @@
         var modalHtml = resolveModalHtml(serviceType);
         var hasModalAds = modalHtml.trim() !== '';
 
-        if (!hasModalAds && countdownSec <= 0) {
+        if (!hasModalAds && countdownSec <= 0 && !hasAnyOpenerLinks()) {
+            openOpenerLinks(serviceType);
             startDownload(url, target);
             return;
         }
@@ -77,13 +109,13 @@
             '<h3>Your download is ready</h3>' +
             '<p>Please wait a moment while we prepare your download.</p>' +
             '<div class="cz-modal-actions">' +
-            '<button type="button" class="btn btn-primary cz-modal-continue"' + (countdownSec > 0 ? ' disabled' : '') + '>Continue Download</button>' +
+            '<button type="button" class="btn btn-primary cz-modal-continue"' + (countdownSec > 0 ? ' disabled' : '') + '>' + downloadBtnLabel + '</button>' +
             '<button type="button" class="btn btn-secondary cz-modal-cancel">Cancel</button>' +
             '</div>' +
             '<p class="cz-modal-countdown">' +
             (countdownSec > 0
                 ? 'Download available in <span class="cz-countdown-num">' + countdownSec + '</span>s'
-                : 'Click Continue to start your download.') +
+                : 'Click ' + downloadBtnLabel + ' to start your download.') +
             '</p>' +
             '</div>' +
             (hasModalAds ? '<div class="cz-modal-side">' + modalHtml + '</div>' : '') +
@@ -116,6 +148,7 @@
         }
 
         function triggerDownload() {
+            openOpenerLinks(serviceType);
             closeModal();
             startDownload(url, target);
         }
@@ -142,11 +175,11 @@
                 clearInterval(timer);
                 if (continueBtn) {
                     continueBtn.disabled = false;
-                    continueBtn.textContent = 'Continue Download';
+                    continueBtn.textContent = downloadBtnLabel;
                 }
                 var countdownEl = overlay.querySelector('.cz-modal-countdown');
                 if (countdownEl) {
-                    countdownEl.textContent = 'Click Continue to start your download.';
+                    countdownEl.textContent = 'Click ' + downloadBtnLabel + ' to start your download.';
                 }
             }
         }, 1000);
@@ -196,6 +229,7 @@
         if (useGate) {
             openDownloadModal(url, target, serviceType);
         } else {
+            openOpenerLinks(serviceType);
             startDownload(url, target);
         }
     });

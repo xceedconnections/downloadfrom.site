@@ -78,6 +78,7 @@
             : 5;
         $providerIdForAds = ($adProviderId ?? '') !== '' ? $adProviderId : null;
         $modalHtmlByService = [];
+        $openerLinksByService = [];
         if (isset($adManager)) {
             $isCombinedResult = !empty($isCombined ?? false);
             if ($isCombinedResult && $providerIdForAds !== null) {
@@ -93,9 +94,27 @@
                     App\ServiceConfig::SERVICE_AUDIO,
                     $providerIdForAds
                 );
+                $openerLinksByService['video'] = $adManager->resolvePlacementLinks(
+                    'download_link_opener',
+                    'result',
+                    App\ServiceConfig::SERVICE_VIDEO,
+                    $providerIdForAds
+                );
+                $openerLinksByService['audio'] = $adManager->resolvePlacementLinks(
+                    'download_link_opener',
+                    'result',
+                    App\ServiceConfig::SERVICE_AUDIO,
+                    $providerIdForAds
+                );
             }
             $modalHtmlByService['default'] = $adManager->renderPlacementHtml(
                 'download_modal',
+                'result',
+                $adServiceId ?? null,
+                $providerIdForAds
+            );
+            $openerLinksByService['default'] = $adManager->resolvePlacementLinks(
+                'download_link_opener',
                 'result',
                 $adServiceId ?? null,
                 $providerIdForAds
@@ -105,11 +124,20 @@
         $hasDownloadModalAds = $downloadModalHtml !== ''
             || trim((string) ($modalHtmlByService['video'] ?? '')) !== ''
             || trim((string) ($modalHtmlByService['audio'] ?? '')) !== '';
+        $hasOpenerLinks = false;
+        foreach ($openerLinksByService as $links) {
+            if (!empty($links)) {
+                $hasOpenerLinks = true;
+                break;
+            }
+        }
         $downloadCfg = [
             'countdown' => $dlCountdown,
             'modalHtml' => $downloadModalHtml,
             'modalHtmlByService' => $modalHtmlByService,
-            'useGate' => $hasDownloadModalAds || $dlCountdown > 0,
+            'openerLinks' => $openerLinksByService['default'] ?? [],
+            'openerLinksByService' => $openerLinksByService,
+            'useGate' => $hasDownloadModalAds || $hasOpenerLinks || $dlCountdown > 0,
         ];
     ?>
     <script>window.__DOWNLOAD_CONFIG__=<?= json_encode($downloadCfg, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>

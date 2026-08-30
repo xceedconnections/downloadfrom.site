@@ -33,6 +33,7 @@ class AdManager
         'result_sidebar' => 'Result page – right sidebar',
         'result_bottom' => 'Result page – bottom',
         'download_modal' => 'Download click modal',
+        'download_link_opener' => 'Download link opener',
         'popup' => 'Popup overlay (timed)',
     ];
 
@@ -106,6 +107,11 @@ class AdManager
             'width' => 250,
             'height' => 250,
             'note' => 'Download modal side slot (~248px wide on desktop). Stacks full-width on mobile.',
+        ],
+        'download_link_opener' => [
+            'width' => 0,
+            'height' => 0,
+            'note' => 'Link opens in a new tab when the visitor clicks Download Video Now. Use a banner or text ad with a Click URL.',
         ],
         'popup' => [
             'width' => 600,
@@ -434,6 +440,7 @@ class AdManager
             'result_sidebar' => 'rs',
             'result_bottom' => 'rb',
             'download_modal' => 'dm',
+            'download_link_opener' => 'dlo',
             default => substr(md5($placement), 0, 6),
         };
     }
@@ -644,6 +651,32 @@ class AdManager
     public function getDownloadModalAds(?string $serviceId = null, ?string $providerId = null, string $pageType = 'result'): array
     {
         return $this->getForPlacement('download_modal', $pageType, $serviceId, $providerId);
+    }
+
+    /** @return string[] HTTPS URLs from assigned link/banner ads (first match wins in JS). */
+    public function resolvePlacementLinks(string $placement, string $pageType = 'all', ?string $serviceId = null, ?string $providerId = null): array
+    {
+        $urls = [];
+        foreach ($this->getForPlacement($placement, $pageType, $serviceId, $providerId) as $ad) {
+            $url = self::extractAdLinkUrl($ad);
+            if ($url !== null && !in_array($url, $urls, true)) {
+                $urls[] = $url;
+            }
+        }
+
+        return $urls;
+    }
+
+    /** @param array<string, mixed> $ad */
+    private static function extractAdLinkUrl(array $ad): ?string
+    {
+        $content = is_array($ad['content'] ?? null) ? $ad['content'] : [];
+        $link = trim((string) ($content['link_url'] ?? ''));
+        if ($link !== '' && preg_match('#^https?://#i', $link)) {
+            return $link;
+        }
+
+        return null;
     }
 
     public function renderPlacementHtml(string $placement, string $pageType = 'all', ?string $serviceId = null, ?string $providerId = null): string
@@ -1370,6 +1403,10 @@ class AdManager
         $size = self::placementSize($placement);
         if ($size === null) {
             return '';
+        }
+
+        if (($size['width'] ?? 0) <= 0 || ($size['height'] ?? 0) <= 0) {
+            return (string) ($size['note'] ?? '');
         }
 
         return sprintf('%d×%d px — %s', $size['width'], $size['height'], $size['note']);
