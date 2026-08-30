@@ -150,14 +150,14 @@ require __DIR__ . '/layout/header.php';
     <div class="admin-tab-panel"<?= $tab !== 'codes' ? ' hidden' : '' ?>>
         <fieldset class="admin-fieldset">
             <legend>Custom Codes</legend>
-            <p class="admin-note">Paste verification or tracking snippets (Google AdSense, Monetag, Analytics, etc.). Head code is best for Monetag Vignette tags. Output on every public page as raw HTML.</p>
-            <label>Head code <span class="hint">(inside &lt;head&gt;, before &lt;/head&gt;)</span>
+            <p class="admin-note">Pop/vignette tags load in <strong>&lt;head&gt;</strong> on every page (head + body fields combined). Desktop Chrome/Firefox also need popups allowed for this site. Keep pop tags here only — do not duplicate them in Ad zones.</p>
+            <label>Head code <span class="hint">(inside &lt;head&gt;)</span>
                 <textarea name="custom_codes_head" rows="8" class="code-area" spellcheck="false" placeholder="<script async src=&quot;https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-...&quot; crossorigin=&quot;anonymous&quot;></script>"><?= Security::escape($currentSettings['custom_codes']['head'] ?? '') ?></textarea>
             </label>
-            <label>Body scripts <span class="hint">(injected at top of &lt;body&gt; on every page)</span>
+            <label>Additional body scripts <span class="hint">(also injected into &lt;head&gt; — not duplicated at bottom)</span>
                 <textarea name="custom_codes_body_end" rows="6" class="code-area" spellcheck="false" placeholder="Pop/vignette / popunder script tags"><?= Security::escape($currentSettings['custom_codes']['body_end'] ?? '') ?></textarea>
             </label>
-            <p class="admin-field-hint">Pop/vignette tags usually fire on the first click (not on page load). Do not paste the same pop scripts in Ad zones — duplicate tags conflict. Disable browser popup blockers when testing.</p>
+            <p class="admin-field-hint">Vignette ads fire on first click. Popunder tabs need browser popups allowed (Chrome → site settings → Pop-ups → Allow). Firefox Enhanced Tracking Protection may block some networks on desktop.</p>
         </fieldset>
     </div>
 

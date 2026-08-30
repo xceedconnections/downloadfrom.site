@@ -775,9 +775,28 @@ class AdManager
             return false;
         }
 
-        return preg_match('/atOptions\s*=/i', $code) === 1
-            || preg_match('/invoke\.js/i', $code) === 1
-            || preg_match_all('/<script\b/i', $code) > 1;
+        $patterns = [
+            '/atOptions\s*=/i',
+            '/invoke\.js/i',
+            '/vignette\.min\.js/i',
+            '/tag\.min\.js/i',
+            '/popunder/i',
+            '/profitableratecpmnetwork/i',
+            '/quge5\.com/i',
+            '/n6wxm\.com/i',
+            '/highrevenueformat/i',
+            '/onclickpop/i',
+            '/data-zone\s*=/i',
+            '/data-cfasync/i',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $code)) {
+                return true;
+            }
+        }
+
+        return preg_match_all('/<script\b/i', $code) > 1;
     }
 
     private function renderIsolatedScriptFrame(string $code): string
