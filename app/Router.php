@@ -86,7 +86,8 @@ class Router
             $path === '/contact' => $this->renderStatic('Contact', 'contact'),
             $path === '/assets/c/w' => $this->handleScriptRelay(),
             $path === '/assets/c/d' => $this->handleOwnedSlotDelivery(),
-            $path === '/assets/img/advertisement-flashing.gif' => $this->servePromoBadgeGif(),
+            $path === '/assets/img/advertisement-label.png' => $this->servePromoBadgeImage(),
+            $path === '/assets/img/advertisement-flashing.gif' => $this->servePromoBadgeImage(),
             $path === '/x/r' => $this->handleScriptRelay(),
             $path === '/' . ServiceConfig::PAGE_FAQ => $this->renderFaq(),
             $path === '/' . ServiceConfig::PAGE_VIDEO => $this->renderService(ServiceConfig::SERVICE_VIDEO),
@@ -320,6 +321,21 @@ class Router
         header('Cache-Control: private, no-store');
         header('X-Robots-Tag: noindex');
         echo $html;
+        exit;
+    }
+
+    private function servePromoBadgeImage(): void
+    {
+        $file = dirname(__DIR__) . '/assets/img/advertisement-label.png';
+        if (!is_file($file)) {
+            http_response_code(404);
+            exit;
+        }
+
+        header('Content-Type: image/png');
+        header('Cache-Control: public, max-age=2592000');
+        header('Content-Length: ' . (string) filesize($file));
+        readfile($file);
         exit;
     }
 

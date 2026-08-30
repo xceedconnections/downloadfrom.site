@@ -484,12 +484,23 @@ class AdManager
 
     public function promoBadgeUrl(): string
     {
-        return rtrim($this->baseUrl, '/') . '/assets/img/advertisement-flashing.gif';
+        return rtrim($this->baseUrl, '/') . '/assets/img/advertisement-label.png';
     }
 
     public function renderPromoBadge(): string
     {
-        return '<div class="dfz-mark"><img src="' . Security::escape($this->promoBadgeUrl()) . '" alt="" class="dfz-mark-img" width="140" height="32" decoding="async"></div>';
+        $file = dirname(__DIR__) . '/assets/img/advertisement-label.png';
+        $width = 177;
+        $height = 64;
+        if (is_file($file)) {
+            $size = getimagesize($file);
+            if (is_array($size)) {
+                $width = (int) ($size[0] ?? $width);
+                $height = (int) ($size[1] ?? $height);
+            }
+        }
+
+        return '<div class="dfz-mark"><img src="' . Security::escape($this->promoBadgeUrl()) . '" alt="" class="dfz-mark-img" width="' . $width . '" height="' . $height . '" decoding="async"></div>';
     }
 
     public function renderZone(string $placement, string $pageType = 'all', ?string $serviceId = null, ?string $providerId = null): string

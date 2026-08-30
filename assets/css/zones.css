@@ -16,9 +16,9 @@
 
 .dfz-mark-img {
     display: block;
-    max-width: 140px;
-    width: 100%;
+    width: auto;
     height: auto;
+    max-width: 100%;
     animation: dfz-mark-flash 1.1s ease-in-out infinite;
 }
 

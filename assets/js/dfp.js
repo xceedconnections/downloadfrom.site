@@ -112,7 +112,7 @@
         if (!src) {
             return '';
         }
-        return '<div class="dfz-mark"><img src="' + src + '" alt="" class="dfz-mark-img" width="140" height="32" decoding="async"></div>';
+        return '<div class="dfz-mark"><img src="' + src + '" alt="" class="dfz-mark-img" decoding="async"></div>';
     }
 
     function createWrap(key) {
