@@ -228,6 +228,15 @@ class Router
             return;
         }
 
+        $serviceType = (string) ($link['service_type'] ?? (
+            ($data['service'] ?? '') === ServiceConfig::SERVICE_AUDIO ? 'audio' : 'video'
+        ));
+        if (!PlatformConfig::isProxyEnabled($this->settings, $platform, $this->config, $serviceType)) {
+            http_response_code(410);
+            echo 'Direct CDN downloads are enabled for this provider. Enable "Stream downloads through server" in Admin → Providers to use this URL.';
+            return;
+        }
+
         $proxy = new DownloadProxy($this->videoService);
         $proxy->stream($token, $index);
         exit;
