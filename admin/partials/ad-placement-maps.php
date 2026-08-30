@@ -52,9 +52,12 @@ $renderZonePicker = static function (
     $serviceAssigned = $serviceKey !== '' ? ($placementMap[$serviceKey] ?? []) : [];
     $globalIds = $placementMap[AdManager::placementMapKey($placementKey, null, null, $pageScope)] ?? $placementMap[$placementKey] ?? [];
     $classes = trim('wf-block wf-ad wf-zone-picker ' . $extraClass);
-    $zoneAds = array_values(array_filter($allAds, static function (array $ad) use ($popupZone): bool {
+    $zoneAds = array_values(array_filter($allAds, static function (array $ad) use ($popupZone, $placementKey): bool {
         $type = (string) ($ad['type'] ?? '');
-        return $popupZone ? $type === 'popup' : $type !== 'popup';
+        if ($placementKey === 'download_link_opener') {
+            return $type === 'download_opener';
+        }
+        return $popupZone ? $type === 'popup' : ($type !== 'popup' && $type !== 'download_opener');
     }));
     $modeHint = $popupZone
         ? 'Add multiple popup ads — all assigned popups show in order.'
@@ -162,7 +165,7 @@ $renderResultWireframe = static function (?string $serviceId, string $linksLabel
     </div>
     <?php $renderZonePicker('result_bottom', '4', 'Result bottom', '', '', $serviceId, $providerId, false, $pageScope); ?>
     <?php $renderZonePicker('download_modal', 'Modal', 'Download modal', 'wf-ad-modal', 'Side ad when user clicks Download', $serviceId, $providerId, false, $pageScope); ?>
-    <?php $renderZonePicker('download_link_opener', 'Opener', 'Download link opener', 'wf-ad-modal', 'Requires Opener URL on the ad + assign here. Opens on Download Video Now.', $serviceId, $providerId, false, $pageScope); ?>
+    <?php $renderZonePicker('download_link_opener', 'Opener', 'Download link opener', 'wf-ad-modal', 'Assign Download Openers tab links here. Opens on Download Video Now.', $serviceId, $providerId, false, $pageScope); ?>
     <?php $renderZonePicker('footer_banner', '5', 'Footer banner', 'wf-ad-sm', '', $serviceId, $providerId, false, $pageScope); ?>
     <?php $renderZonePicker('popup', 'Popup', 'Timed popup', 'wf-ad-popup', 'Full-screen overlay after delay', $serviceId, $providerId, true, $pageScope); ?>
     <?php

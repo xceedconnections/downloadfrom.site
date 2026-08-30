@@ -31,11 +31,13 @@ final class AdsRepository
     {
         $doc = $defaults;
 
-        $stmt = $this->pdo->query('SELECT enabled, download_modal_countdown FROM ad_settings WHERE id = 1 LIMIT 1');
+        $stmt = $this->pdo->query('SELECT enabled, download_modal_countdown, download_opener_mode, download_opener_count FROM ad_settings WHERE id = 1 LIMIT 1');
         $row = $stmt ? $stmt->fetch() : false;
         if ($row) {
             $doc['enabled'] = (bool) ($row['enabled'] ?? false);
             $doc['download_modal_countdown'] = (int) ($row['download_modal_countdown'] ?? 5);
+            $doc['download_opener_mode'] = self::normalizeOpenerMode((string) ($row['download_opener_mode'] ?? 'random'));
+            $doc['download_opener_count'] = self::normalizeOpenerCount((int) ($row['download_opener_count'] ?? 1));
         }
 
         $doc['placement_map'] = $this->loadPlacementMap();
@@ -62,11 +64,13 @@ final class AdsRepository
             $this->pdo->exec('DELETE FROM ads');
             $this->pdo->exec('DELETE FROM ad_settings');
             $stmt = $this->pdo->prepare(
-                'INSERT INTO ad_settings (id, enabled, download_modal_countdown) VALUES (1, ?, ?)'
+                'INSERT INTO ad_settings (id, enabled, download_modal_countdown, download_opener_mode, download_opener_count) VALUES (1, ?, ?, ?, ?)'
             );
             $stmt->execute([
                 !empty($merged['enabled']) ? 1 : 0,
                 max(0, min(30, (int) ($merged['download_modal_countdown'] ?? 5))),
+                self::normalizeOpenerMode((string) ($merged['download_opener_mode'] ?? 'random')),
+                self::normalizeOpenerCount((int) ($merged['download_opener_count'] ?? 1)),
             ]);
 
             $this->savePlacementMap($merged['placement_map'] ?? []);
@@ -373,5 +377,40 @@ final class AdsRepository
             $max = max($max, (int) ($ad['updated'] ?? 0));
         }
         return $max > 0 ? $max : time();
+    }
+
+    public function updateAdSettings(bool $enabled, int $countdown, string $openerMode, int $openerCount): bool
+    {
+        try {
+            $stmt = $this->pdo->prepare(
+                'INSERT INTO ad_settings (id, enabled, download_modal_countdown, download_opener_mode, download_opener_count)
+                 VALUES (1, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    enabled = VALUES(enabled),
+                    download_modal_countdown = VALUES(download_modal_countdown),
+                    download_opener_mode = VALUES(download_opener_mode),
+                    download_opener_count = VALUES(download_opener_count)'
+            );
+
+            return $stmt->execute([
+                $enabled ? 1 : 0,
+                max(0, min(30, $countdown)),
+                self::normalizeOpenerMode($openerMode),
+                self::normalizeOpenerCount($openerCount),
+            ]);
+        } catch (\Throwable $e) {
+            $this->lastError = $e->getMessage();
+            return false;
+        }
+    }
+
+    public static function normalizeOpenerMode(string $mode): string
+    {
+        return in_array($mode, ['random', 'multiple'], true) ? $mode : 'random';
+    }
+
+    public static function normalizeOpenerCount(int $count): int
+    {
+        return max(1, min(3, $count));
     }
 }

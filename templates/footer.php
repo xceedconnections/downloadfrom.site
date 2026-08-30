@@ -78,7 +78,7 @@
             : 5;
         $providerIdForAds = ($adProviderId ?? '') !== '' ? $adProviderId : null;
         $modalHtmlByService = [];
-        $openerLinksByService = [];
+        $openerPool = [];
         if (isset($adManager)) {
             $isCombinedResult = !empty($isCombined ?? false);
             if ($isCombinedResult && $providerIdForAds !== null) {
@@ -94,18 +94,6 @@
                     App\ServiceConfig::SERVICE_AUDIO,
                     $providerIdForAds
                 );
-                $openerLinksByService['video'] = $adManager->resolvePlacementLinks(
-                    'download_link_opener',
-                    'result',
-                    App\ServiceConfig::SERVICE_VIDEO,
-                    $providerIdForAds
-                );
-                $openerLinksByService['audio'] = $adManager->resolvePlacementLinks(
-                    'download_link_opener',
-                    'result',
-                    App\ServiceConfig::SERVICE_AUDIO,
-                    $providerIdForAds
-                );
             }
             $modalHtmlByService['default'] = $adManager->renderPlacementHtml(
                 'download_modal',
@@ -113,35 +101,25 @@
                 $adServiceId ?? null,
                 $providerIdForAds
             );
-            $openerLinksByService['default'] = $adManager->resolvePlacementLinks(
-                'download_link_opener',
+            $openerPool = $adManager->resolveDownloadOpenerPool(
                 'result',
                 $adServiceId ?? null,
                 $providerIdForAds
             );
         }
+        $openerSettings = isset($adManager) ? $adManager->getDownloadOpenerSettings() : ['mode' => 'random', 'count' => 1];
         $downloadModalHtml = trim((string) ($modalHtmlByService['default'] ?? ''));
         $hasDownloadModalAds = $downloadModalHtml !== ''
             || trim((string) ($modalHtmlByService['video'] ?? '')) !== ''
             || trim((string) ($modalHtmlByService['audio'] ?? '')) !== '';
-        $hasOpenerLinks = false;
-        $allOpenerLinks = [];
-        foreach ($openerLinksByService as $links) {
-            foreach ($links as $link) {
-                if ($link === '' || in_array($link, $allOpenerLinks, true)) {
-                    continue;
-                }
-                $allOpenerLinks[] = $link;
-                $hasOpenerLinks = true;
-            }
-        }
+        $hasOpenerLinks = $openerPool !== [];
         $downloadCfg = [
             'countdown' => $dlCountdown,
             'modalHtml' => $downloadModalHtml,
             'modalHtmlByService' => $modalHtmlByService,
-            'openerLinks' => $openerLinksByService['default'] ?? [],
-            'openerLinksByService' => $openerLinksByService,
-            'openerLinksAll' => $allOpenerLinks,
+            'openerPool' => $openerPool,
+            'openerMode' => $openerSettings['mode'],
+            'openerCount' => $openerSettings['count'],
             'useGate' => $hasDownloadModalAds || $hasOpenerLinks || $dlCountdown > 0,
         ];
     ?>

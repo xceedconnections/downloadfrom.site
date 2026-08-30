@@ -39,6 +39,8 @@ final class DatabaseInstaller
             self::ensureColumn($pdo, 'ads', 'popup_display', "VARCHAR(16) NOT NULL DEFAULT 'modal' AFTER popup_closable");
             self::ensureColumn($pdo, 'ads', 'popup_content_mode', "VARCHAR(16) NOT NULL DEFAULT 'html' AFTER popup_display");
             self::ensureColumn($pdo, 'ads', 'impression_count', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER popup_content_mode');
+            self::ensureColumn($pdo, 'ad_settings', 'download_opener_mode', "VARCHAR(16) NOT NULL DEFAULT 'random' AFTER download_modal_countdown");
+            self::ensureColumn($pdo, 'ad_settings', 'download_opener_count', 'TINYINT NOT NULL DEFAULT 1 AFTER download_opener_mode');
             self::ensureColumn($pdo, 'visitor_events', 'page_title', "VARCHAR(255) NOT NULL DEFAULT '' AFTER page_path");
             self::ensureColumn($pdo, 'visitor_events', 'referrer_source', "VARCHAR(128) NOT NULL DEFAULT '' AFTER referrer_url");
             self::ensureZoneAssignmentsMultiAd($pdo);

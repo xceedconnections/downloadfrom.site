@@ -4,9 +4,10 @@
     var cfg = window.__DOWNLOAD_CONFIG__ || {};
     var countdownSec = Math.max(0, parseInt(cfg.countdown, 10) || 0);
     var modalHtmlByService = cfg.modalHtmlByService || {};
-    var openerLinksByService = cfg.openerLinksByService || {};
+    var openerPool = Array.isArray(cfg.openerPool) ? cfg.openerPool : [];
+    var openerMode = cfg.openerMode === 'multiple' ? 'multiple' : 'random';
+    var openerCount = Math.max(1, Math.min(3, parseInt(cfg.openerCount, 10) || 1));
     var defaultModalHtml = cfg.modalHtml || modalHtmlByService.default || '';
-    var defaultOpenerLinks = cfg.openerLinks || openerLinksByService.default || [];
     var downloadBtnLabel = 'Download Video Now';
 
     function resolveModalHtml(serviceType) {
@@ -20,32 +21,17 @@
         return modalHtmlByService.default || '';
     }
 
-    function resolveOpenerLinks(serviceType) {
-        var key = (serviceType || '').toLowerCase();
-        var links = [];
-        var seen = {};
-
-        function addList(list) {
-            if (!Array.isArray(list)) {
-                return;
-            }
-            list.forEach(function (link) {
-                var normalized = String(link || '').trim();
-                if (normalized && !seen[normalized]) {
-                    seen[normalized] = true;
-                    links.push(normalized);
-                }
-            });
+    function pickOpenerLinks() {
+        var pool = openerPool.filter(function (url) {
+            return /^https?:\/\//i.test(String(url || '').trim());
+        });
+        if (pool.length === 0) {
+            return [];
         }
-
-        if (key) {
-            addList(openerLinksByService[key]);
+        if (openerMode === 'random') {
+            return [pool[Math.floor(Math.random() * pool.length)]];
         }
-        addList(defaultOpenerLinks);
-        addList(openerLinksByService.default);
-        addList(cfg.openerLinksAll);
-
-        return links;
+        return pool.slice(0, Math.min(openerCount, pool.length));
     }
 
     function hasAnyModalAds() {
@@ -58,55 +44,34 @@
     }
 
     function hasAnyOpenerLinks() {
-        if (Array.isArray(cfg.openerLinksAll) && cfg.openerLinksAll.length > 0) {
-            return true;
-        }
-        if (Array.isArray(defaultOpenerLinks) && defaultOpenerLinks.length > 0) {
-            return true;
-        }
-        return Object.keys(openerLinksByService).some(function (key) {
-            return Array.isArray(openerLinksByService[key]) && openerLinksByService[key].length > 0;
-        });
+        return openerPool.length > 0;
     }
 
     var useGate = cfg.useGate !== false && (hasAnyModalAds() || hasAnyOpenerLinks() || countdownSec > 0);
 
-    function isExternalUrl(url) {
-        return /^https?:\/\//i.test(String(url || '').trim());
-    }
-
     function openExternalUrl(url) {
         var trimmed = String(url || '').trim();
-        if (!isExternalUrl(trimmed)) {
-            return false;
+        if (!/^https?:\/\//i.test(trimmed)) {
+            return;
         }
-
-        var opened = window.open(trimmed, '_blank', 'noopener,noreferrer');
-        if (opened) {
-            opened.opener = null;
-            return true;
-        }
-
-        var anchor = document.createElement('a');
-        anchor.href = trimmed;
-        anchor.target = '_blank';
-        anchor.rel = 'noopener noreferrer';
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        return true;
+        window.open(trimmed, '_blank', 'noopener,noreferrer');
     }
 
     function startDownload(url, target) {
-        if (target === '_blank') {
-            openExternalUrl(url);
-        } else {
-            window.location.href = url;
+        var trimmed = String(url || '').trim();
+        if (trimmed === '') {
+            return;
         }
+        if (target === '_blank') {
+            openExternalUrl(trimmed);
+            return;
+        }
+        window.location.href = trimmed;
     }
 
-    function openOpenerLinks(serviceType) {
-        resolveOpenerLinks(serviceType).forEach(openExternalUrl);
+    function runDownloadFlow(url, target) {
+        pickOpenerLinks().forEach(openExternalUrl);
+        startDownload(url, target);
     }
 
     function activateModalScripts(container) {
@@ -137,8 +102,7 @@
         var hasModalAds = modalHtml.trim() !== '';
 
         if (!hasModalAds && countdownSec <= 0) {
-            openOpenerLinks(serviceType);
-            startDownload(url, target);
+            runDownloadFlow(url, target);
             return;
         }
 
@@ -181,6 +145,7 @@
         var closeBtn = overlay.querySelector('.cz-modal-close');
         var numEl = overlay.querySelector('.cz-countdown-num');
         var remaining = countdownSec;
+        var downloadTriggered = false;
 
         function closeModal() {
             overlay.classList.remove('open');
@@ -190,21 +155,23 @@
         }
 
         function triggerDownload() {
-            var openerUrls = resolveOpenerLinks(serviceType);
-            openerUrls.forEach(openExternalUrl);
+            if (downloadTriggered) {
+                return;
+            }
+            downloadTriggered = true;
+            runDownloadFlow(url, target);
             closeModal();
-            startDownload(url, target);
         }
 
         if (countdownSec <= 0) {
             if (continueBtn) {
-                continueBtn.addEventListener('click', triggerDownload);
+                continueBtn.addEventListener('click', triggerDownload, { once: true });
             }
             if (cancelBtn) {
-                cancelBtn.addEventListener('click', closeModal);
+                cancelBtn.addEventListener('click', closeModal, { once: true });
             }
             if (closeBtn) {
-                closeBtn.addEventListener('click', closeModal);
+                closeBtn.addEventListener('click', closeModal, { once: true });
             }
             return;
         }
@@ -233,25 +200,25 @@
                     clearInterval(timer);
                     triggerDownload();
                 }
-            });
+            }, { once: true });
         }
         if (cancelBtn) {
             cancelBtn.addEventListener('click', function () {
                 clearInterval(timer);
                 closeModal();
-            });
+            }, { once: true });
         }
         if (closeBtn) {
             closeBtn.addEventListener('click', function () {
                 clearInterval(timer);
                 closeModal();
-            });
+            }, { once: true });
         }
     }
 
     document.addEventListener('click', function (e) {
         var btn = e.target.closest('.btn-download');
-        if (!btn) {
+        if (!btn || btn.getAttribute('data-download-busy') === '1') {
             return;
         }
 
@@ -261,10 +228,16 @@
         }
 
         e.preventDefault();
+        e.stopPropagation();
 
         if (window.__DF_GATE_BLOCKED__ || document.documentElement.classList.contains('df-gated')) {
             return;
         }
+
+        btn.setAttribute('data-download-busy', '1');
+        setTimeout(function () {
+            btn.removeAttribute('data-download-busy');
+        }, 1500);
 
         var target = btn.getAttribute('data-download-target') || '';
         var serviceType = btn.getAttribute('data-download-service') || 'default';
@@ -272,8 +245,7 @@
         if (useGate) {
             openDownloadModal(url, target, serviceType);
         } else {
-            openOpenerLinks(serviceType);
-            startDownload(url, target);
+            runDownloadFlow(url, target);
         }
-    });
+    }, true);
 })();

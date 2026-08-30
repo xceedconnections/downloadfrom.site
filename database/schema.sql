@@ -66,6 +66,8 @@ CREATE TABLE IF NOT EXISTS ad_settings (
     id TINYINT NOT NULL DEFAULT 1,
     enabled TINYINT(1) NOT NULL DEFAULT 0,
     download_modal_countdown INT NOT NULL DEFAULT 5,
+    download_opener_mode VARCHAR(16) NOT NULL DEFAULT 'random',
+    download_opener_count TINYINT NOT NULL DEFAULT 1,
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

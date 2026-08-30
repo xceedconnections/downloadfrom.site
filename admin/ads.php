@@ -47,6 +47,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $error = 'Failed to save placement map.';
         }
+    } elseif (isset($_POST['save_opener_settings'])) {
+        $mode = (string) ($_POST['download_opener_mode'] ?? 'random');
+        $count = (int) ($_POST['download_opener_count'] ?? 1);
+        if ($adManager->saveOpenerSettings($mode, $count)) {
+            $message = 'Download opener settings saved.';
+            $tab = 'openers';
+        } else {
+            $error = 'Failed to save opener settings.';
+            $tab = 'openers';
+        }
+    } elseif (isset($_POST['save_opener_ad'])) {
+        $id = trim($_POST['opener_ad_id'] ?? '');
+        if ($id === '') {
+            $id = AdManager::generateId();
+        }
+        $existingAd = $adManager->getAd($id) ?? [];
+        $existingContent = is_array($existingAd['content'] ?? null) ? $existingAd['content'] : [];
+        $url = trim($_POST['opener_url'] ?? '');
+        if ($url === '') {
+            $error = 'Opener URL is required.';
+            $tab = 'openers';
+        } else {
+            $ad = [
+                'id' => $id,
+                'name' => trim($_POST['opener_name'] ?? 'Opener link'),
+                'enabled' => isset($_POST['opener_enabled']),
+                'source' => 'own',
+                'type' => 'download_opener',
+                'network' => 'custom',
+                'placements' => is_array($existingAd['placements'] ?? null) ? $existingAd['placements'] : [],
+                'pages' => is_array($existingAd['pages'] ?? null) && ($existingAd['pages'] ?? []) !== [] ? $existingAd['pages'] : ['all'],
+                'priority' => (int) ($_POST['opener_priority'] ?? 0),
+                'content' => [
+                    'title' => '',
+                    'text' => '',
+                    'html' => '',
+                    'image_url' => '',
+                    'video_url' => '',
+                    'link_url' => $url,
+                    'alt' => '',
+                    'width' => 0,
+                    'height' => 0,
+                ],
+                'popup' => is_array($existingAd['popup'] ?? null) ? $existingAd['popup'] : [
+                    'delay_seconds' => 3,
+                    'show_once_per_session' => false,
+                    'closable' => true,
+                    'display' => 'modal',
+                    'content_mode' => 'html',
+                ],
+                'updated' => time(),
+            ];
+            if ($adManager->saveAd($ad)) {
+                $message = 'Opener link saved. Assign it in Placement Map → Opener zone.';
+                $tab = 'openers';
+            } else {
+                $error = 'Failed to save opener link.' . ($adManager->getLastSaveError() !== '' ? ' ' . $adManager->getLastSaveError() : '');
+                $tab = 'openers';
+            }
+        }
+    } elseif (isset($_POST['delete_opener_ad'])) {
+        $id = trim($_POST['opener_ad_id'] ?? '');
+        if ($id !== '' && $adManager->deleteAd($id)) {
+            $map = $adManager->getPlacementMap();
+            foreach ($map as $place => $mappedIds) {
+                $filtered = array_values(array_filter($mappedIds, static fn(string $mappedId): bool => $mappedId !== $id));
+                if ($filtered === []) {
+                    unset($map[$place]);
+                } else {
+                    $map[$place] = $filtered;
+                }
+            }
+            $adManager->savePlacementMap($map);
+            $message = 'Opener link deleted.';
+        }
+        $tab = 'openers';
     } elseif (isset($_POST['delete_ad'])) {
         $id = trim($_POST['ad_id'] ?? '');
         if ($id !== '' && $adManager->deleteAd($id)) {
@@ -221,9 +297,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($type !== 'popup') {
             $sharedLink = trim($_POST['link_url'] ?? '');
-            if ($sharedLink !== '') {
+            if ($sharedLink !== '' && $type !== 'download_opener') {
                 $contentLink = $sharedLink;
-            } elseif (($contentLink ?? '') === '') {
+            } elseif (($contentLink ?? '') === '' && $type !== 'download_opener') {
                 $contentLink = (string) ($existingContent['link_url'] ?? '');
             }
         }
@@ -241,6 +317,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ? $existingAd['pages']
             : ['all'];
 
+        if ($type === 'download_opener') {
+            $error = 'Use the Download Openers tab to manage opener links.';
+            $tab = 'openers';
+        } else {
         $ad = [
             'id' => $id,
             'name' => trim($_POST['name'] ?? 'Untitled Ad'),
@@ -286,11 +366,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tab = 'ads';
             $editId = $id;
         }
+        }
     }
 }
 
 $adData = $adManager->getData();
 $editAd = $editId !== '' ? $adManager->getAd($editId) : null;
+if ($action === 'edit' && $editAd !== null && ($editAd['type'] ?? '') === 'download_opener') {
+    header('Location: ads.php?tab=openers&opener_action=edit&opener_id=' . rawurlencode((string) ($editAd['id'] ?? '')));
+    exit;
+}
 if ($action === 'edit' && $editAd === null && $editId !== '') {
     $error = 'Ad not found.';
     $action = 'list';
@@ -308,10 +393,14 @@ require __DIR__ . '/layout/header.php';
 
 <div class="admin-tabs">
     <a href="ads.php?tab=ads" class="admin-tab<?= $tab === 'ads' ? ' active' : '' ?>">Manage Ads</a>
+    <a href="ads.php?tab=openers" class="admin-tab<?= $tab === 'openers' ? ' active' : '' ?>">Download Openers</a>
     <a href="ads.php?tab=map" class="admin-tab<?= $tab === 'map' ? ' active' : '' ?>">Placement Map</a>
 </div>
 
-<?php if ($tab === 'map'): ?>
+<?php if ($tab === 'openers'): ?>
+<?php require __DIR__ . '/partials/ad-openers.php'; ?>
+
+<?php elseif ($tab === 'map'): ?>
 <div class="admin-tab-panel">
     <h2>Ad Placement Map</h2>
     <?php require __DIR__ . '/partials/ad-placement-maps.php'; ?>
@@ -375,14 +464,6 @@ $mediaPreview = static function (string $path): string {
             </label>
         </fieldset>
 
-        <fieldset class="admin-fieldset ad-fields-opener-url" id="ad-opener-url-fieldset">
-            <legend>Download link opener</legend>
-            <label>Opener URL (opens in new tab when visitor clicks Download)
-                <input type="url" name="link_url" value="<?= Security::escape($c['link_url'] ?? '') ?>" placeholder="https://example.com/offer">
-            </label>
-            <p class="admin-field-hint">Set this URL, save the ad, then assign it to the <strong>Opener</strong> zone on a <strong>result page</strong> in <a href="ads.php?tab=map">Placement Map</a>. HTML/script code above is <em>not</em> used for Opener — only this URL.</p>
-        </fieldset>
-
         <fieldset class="admin-fieldset ad-fields-html ad-fields-type">
             <legend>HTML / Script code</legend>
             <label>Paste full ad code (scripts, ins tags, iframes)
@@ -403,6 +484,7 @@ $mediaPreview = static function (string $path): string {
                 <input type="file" name="banner_upload" accept="image/png,image/jpeg,image/gif,image/webp">
             </label>
             <label>Or image URL <input type="text" name="image_url" value="<?= Security::escape($c['image_url'] ?? '') ?>"></label>
+            <label>Click URL <input type="url" name="link_url" value="<?= Security::escape($c['link_url'] ?? '') ?>" placeholder="https://example.com/"></label>
             <label>Alt text <input type="text" name="image_alt" value="<?= Security::escape($c['alt'] ?? 'Advertisement') ?>"></label>
         </fieldset>
 
@@ -555,7 +637,6 @@ $mediaPreview = static function (string $path): string {
     var htmlField = document.getElementById('ad-content-html');
     var textField = document.getElementById('ad-content-text');
     var adForm = document.getElementById('ad-form');
-    var openerUrlFieldset = document.getElementById('ad-opener-url-fieldset');
 
     function setContainerFieldsDisabled(container, disabled) {
         if (!container) {
@@ -588,10 +669,6 @@ $mediaPreview = static function (string $path): string {
             }
         } else         if (textField && window.AdminWysiwyg) {
             AdminWysiwyg.removeIn(textField.closest('fieldset') || document);
-        }
-        if (openerUrlFieldset) {
-            openerUrlFieldset.style.display = t === 'popup' ? 'none' : 'block';
-            setContainerFieldsDisabled(openerUrlFieldset, t === 'popup');
         }
         if (t === 'popup') {
             document.querySelectorAll('.ad-fields-popup').forEach(function (el) {
@@ -671,13 +748,15 @@ $mediaPreview = static function (string $path): string {
     <?php else: ?>
     <table class="admin-table">
         <thead>
-            <tr><th>Impressions</th><th>Name</th><th>Type</th><th>Opener URL</th><th>Used in zones</th><th>Status</th><th>Actions</th></tr>
+            <tr><th>Impressions</th><th>Name</th><th>Type</th><th>Used in zones</th><th>Status</th><th>Actions</th></tr>
         </thead>
         <tbody>
         <?php foreach ($adManager->allAds() as $ad):
+            if (($ad['type'] ?? '') === 'download_opener') {
+                continue;
+            }
             $aid = (string) ($ad['id'] ?? '');
             $usedIn = [];
-            $inOpenerZone = false;
             foreach ($adManager->getPlacementMap() as $place => $mappedIds) {
                 if (!is_array($mappedIds)) {
                     $mappedIds = [$mappedIds];
@@ -686,9 +765,6 @@ $mediaPreview = static function (string $path): string {
                     continue;
                 }
                 $parsed = AdManager::parsePlacementMapKey($place);
-                if (($parsed['placement'] ?? '') === 'download_link_opener') {
-                    $inOpenerZone = true;
-                }
                 $label = AdManager::PLACEMENTS[$parsed['placement']] ?? $parsed['placement'];
                 if ($parsed['page_scope'] !== null) {
                     $label = ucfirst((string) $parsed['page_scope']) . ': ' . $label;
@@ -700,13 +776,11 @@ $mediaPreview = static function (string $path): string {
                 }
                 $usedIn[] = $label;
             }
-            $linkUrl = trim((string) ($ad['content']['link_url'] ?? ''));
         ?>
         <tr>
             <td><?= number_format((int) ($ad['impression_count'] ?? 0)) ?></td>
             <td><?= Security::escape($ad['name'] ?? '') ?></td>
             <td><?= Security::escape(AdManager::AD_TYPES[$ad['type'] ?? ''] ?? $ad['type'] ?? '') ?></td>
-            <td><?php if ($linkUrl !== ''): ?><a href="<?= Security::escape($linkUrl) ?>" target="_blank" rel="noopener noreferrer"><?= Security::escape(parse_url($linkUrl, PHP_URL_HOST) ?: $linkUrl) ?></a><?php elseif ($inOpenerZone): ?><span class="admin-error-inline">Missing URL</span><?php else: ?>—<?php endif; ?></td>
             <td><?= Security::escape($usedIn !== [] ? implode(', ', $usedIn) : '— assign in Placement Map') ?></td>
             <td><?= !empty($ad['enabled']) ? 'Active' : 'Disabled' ?></td>
             <td>

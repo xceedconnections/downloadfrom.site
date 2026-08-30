@@ -140,6 +140,7 @@ class AdManager
         'html' => 'HTML / Script (AdSense, etc.)',
         'video' => 'Video',
         'popup' => 'Popup content',
+        'download_opener' => 'Download link opener',
     ];
 
     public const NETWORKS = [
@@ -315,6 +316,45 @@ class AdManager
         $this->data['enabled'] = $enabled;
         $this->data['download_modal_countdown'] = max(0, min(30, $downloadModalCountdown));
         return $this->save($this->data);
+    }
+
+    public function saveOpenerSettings(string $mode, int $count): bool
+    {
+        $this->data['download_opener_mode'] = AdsRepository::normalizeOpenerMode($mode);
+        $this->data['download_opener_count'] = AdsRepository::normalizeOpenerCount($count);
+        if (!$this->repo->updateAdSettings(
+            !empty($this->data['enabled']),
+            (int) ($this->data['download_modal_countdown'] ?? 5),
+            (string) $this->data['download_opener_mode'],
+            (int) $this->data['download_opener_count']
+        )) {
+            return false;
+        }
+        $this->reloadData();
+        return true;
+    }
+
+    /** @return array{mode: string, count: int} */
+    public function getDownloadOpenerSettings(): array
+    {
+        return [
+            'mode' => AdsRepository::normalizeOpenerMode((string) ($this->data['download_opener_mode'] ?? 'random')),
+            'count' => AdsRepository::normalizeOpenerCount((int) ($this->data['download_opener_count'] ?? 1)),
+        ];
+    }
+
+    /** @return array<int, array> */
+    public function allOpenerAds(): array
+    {
+        return array_values(array_filter($this->allAds(), static function (array $ad): bool {
+            return ($ad['type'] ?? '') === 'download_opener';
+        }));
+    }
+
+    /** @return string[] */
+    public function resolveDownloadOpenerPool(string $pageType = 'result', ?string $serviceId = null, ?string $providerId = null): array
+    {
+        return $this->resolvePlacementLinks('download_link_opener', $pageType, $serviceId, $providerId);
     }
 
     /** @return array<int, array> */
@@ -700,6 +740,9 @@ class AdManager
             if (empty($ad['enabled'])) {
                 continue;
             }
+            if ($placement === 'download_link_opener' && ($ad['type'] ?? '') !== 'download_opener') {
+                continue;
+            }
             $placements = $ad['placements'] ?? [];
             $matched = false;
             foreach (self::placementAliases($placement) as $alias) {
@@ -811,7 +854,12 @@ class AdManager
         }
 
         $urls = [];
-        foreach ($this->resolveEnabledAds($adIds) as $ad) {
+        $ads = $this->resolveEnabledAds($adIds);
+        usort($ads, static fn(array $a, array $b): int => ($b['priority'] ?? 0) <=> ($a['priority'] ?? 0));
+        foreach ($ads as $ad) {
+            if (($ad['type'] ?? '') !== 'download_opener') {
+                continue;
+            }
             $url = self::extractAdLinkUrl($ad);
             if ($url !== null && !in_array($url, $urls, true)) {
                 $urls[] = $url;
@@ -824,15 +872,22 @@ class AdManager
     /** @param array<string, mixed> $ad */
     private static function extractAdLinkUrl(array $ad): ?string
     {
+        $type = (string) ($ad['type'] ?? '');
+        if ($type !== 'download_opener' && $type !== 'banner' && $type !== 'text') {
+            return null;
+        }
+
         $content = is_array($ad['content'] ?? null) ? $ad['content'] : [];
         $link = self::normalizeExternalUrl((string) ($content['link_url'] ?? ''));
         if ($link !== null) {
             return $link;
         }
 
-        $html = trim((string) ($content['html'] ?? ''));
-        if ($html !== '' && preg_match('#\bhref=(["\'])(https?://[^"\']+)\1#i', $html, $match)) {
-            return self::normalizeExternalUrl($match[2]);
+        if ($type !== 'download_opener') {
+            $html = trim((string) ($content['html'] ?? ''));
+            if ($html !== '' && preg_match('#\bhref=(["\'])(https?://[^"\']+)\1#i', $html, $match)) {
+                return self::normalizeExternalUrl($match[2]);
+            }
         }
 
         return null;
@@ -1283,6 +1338,8 @@ class AdManager
         return [
             'enabled' => false,
             'download_modal_countdown' => 5,
+            'download_opener_mode' => 'random',
+            'download_opener_count' => 1,
             'updated' => time(),
             'placement_map' => [],
             'ads' => [],
