@@ -172,6 +172,66 @@ class Security
         return hash('sha256', $ip . '|videolink_salt');
     }
 
+    /** Real visitor IP — never hashed. Checks proxy headers used by Cloudflare, nginx, and aaPanel. */
+    public static function clientIp(): string
+    {
+        $headers = [
+            'HTTP_CF_CONNECTING_IP',
+            'HTTP_TRUE_CLIENT_IP',
+            'HTTP_X_REAL_IP',
+            'HTTP_X_FORWARDED_FOR',
+            'HTTP_X_FORWARDED',
+            'HTTP_CLIENT_IP',
+            'HTTP_X_CLUSTER_CLIENT_IP',
+            'REMOTE_ADDR',
+        ];
+
+        $candidates = [];
+        foreach ($headers as $key) {
+            $raw = trim((string) ($_SERVER[$key] ?? ''));
+            if ($raw === '') {
+                continue;
+            }
+            foreach (explode(',', $raw) as $part) {
+                $part = trim($part);
+                if ($part !== '' && self::isValidIp($part)) {
+                    $candidates[] = $part;
+                }
+            }
+        }
+
+        foreach ($candidates as $ip) {
+            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) && !self::isPrivateIp($ip)) {
+                return $ip;
+            }
+        }
+
+        foreach ($candidates as $ip) {
+            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+                return $ip;
+            }
+        }
+
+        foreach ($candidates as $ip) {
+            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) && !self::isPrivateIp($ip)) {
+                return $ip;
+            }
+        }
+
+        foreach ($candidates as $ip) {
+            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+                return $ip;
+            }
+        }
+
+        return '';
+    }
+
+    public static function isValidIp(string $ip): bool
+    {
+        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6) !== false;
+    }
+
     public static function generateToken(int $length = 32): string
     {
         return bin2hex(random_bytes($length));

@@ -21,6 +21,10 @@ $siteHost = (string) (parse_url($config['app']['url'] ?? '', PHP_URL_HOST) ?? ''
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Security::validateCsrfToken($_POST[$config['security']['csrf_token_name']] ?? null, $config)) {
         $error = 'Invalid CSRF token.';
+    } elseif (isset($_POST['clear_legacy_hashed'])) {
+        $cleared = $visitorAnalytics->clearLegacyHashed();
+        $message = 'Removed ' . number_format($cleared) . ' legacy hashed IP record(s). New visits will store real IPv4 addresses.';
+        $page = 1;
     } elseif (isset($_POST['clear_visitor_analytics'])) {
         $cleared = $visitorAnalytics->clearAll();
         $message = 'Cleared ' . number_format($cleared) . ' visitor record(s).';
@@ -59,7 +63,8 @@ require __DIR__ . '/layout/header.php';
 
 <h1>Visitor Analytics</h1>
 <p class="admin-note">
-    Real visitor IPs, traffic sources, countries, and time on page. Clear junk data anytime below.
+    Real visitor IPv4/IPv6 addresses, traffic sources, countries, and time on page.
+    If you see long hex strings instead of IPs, those are <strong>old hashed records</strong> — remove them with the button below, then visit the public site again.
     Tracking can be toggled in <a href="settings.php">Site Settings → Enable Analytics</a>.
 </p>
 
@@ -267,7 +272,13 @@ require __DIR__ . '/layout/header.php';
 
 <hr class="va-divider">
 
-<form method="POST" onsubmit="return confirm('Delete ALL visitor analytics records? This cannot be undone.')">
+<form method="POST" style="display:inline-block;margin-right:.75rem" onsubmit="return confirm('Remove all visitor rows with hashed IPs (old format)?')">
+    <?= Security::csrfField($config) ?>
+    <input type="hidden" name="clear_legacy_hashed" value="1">
+    <button type="submit" class="btn btn-primary">Remove Legacy Hashed IPs</button>
+</form>
+
+<form method="POST" style="display:inline-block" onsubmit="return confirm('Delete ALL visitor analytics records? This cannot be undone.')">
     <?= Security::csrfField($config) ?>
     <input type="hidden" name="clear_visitor_analytics" value="1">
     <button type="submit" class="btn btn-secondary">Clear All Visitor Data</button>

@@ -35,8 +35,8 @@ final class VisitorAnalytics
             return null;
         }
 
-        $ip = self::clientIp();
-        if ($ip === '') {
+        $ip = Security::clientIp();
+        if ($ip === '' || !Security::isValidIp($ip)) {
             return null;
         }
 
@@ -114,6 +114,11 @@ final class VisitorAnalytics
         ];
     }
 
+    public function clearLegacyHashed(): int
+    {
+        return $this->repo->clearLegacyHashed();
+    }
+
     public function clearAll(): int
     {
         return $this->repo->clearAll();
@@ -121,33 +126,7 @@ final class VisitorAnalytics
 
     public static function clientIp(): string
     {
-        $candidates = [];
-        foreach (['HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR'] as $key) {
-            $raw = trim((string) ($_SERVER[$key] ?? ''));
-            if ($raw === '') {
-                continue;
-            }
-            foreach (explode(',', $raw) as $part) {
-                $part = trim($part);
-                if ($part !== '') {
-                    $candidates[] = $part;
-                }
-            }
-        }
-
-        foreach ($candidates as $ip) {
-            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-                return $ip;
-            }
-        }
-
-        foreach ($candidates as $ip) {
-            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-                return $ip;
-            }
-        }
-
-        return '';
+        return Security::clientIp();
     }
 
     public static function shouldTrackPath(string $path, string $method): bool

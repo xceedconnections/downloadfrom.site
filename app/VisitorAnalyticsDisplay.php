@@ -133,14 +133,24 @@ final class VisitorAnalyticsDisplay
         return $a . $b;
     }
 
+    public static function isLegacyHashedIp(string $value): bool
+    {
+        $value = trim($value);
+        if ($value === '' || Security::isValidIp($value)) {
+            return false;
+        }
+
+        return (bool) preg_match('/^[a-f0-9]{32,64}$/i', $value);
+    }
+
     public static function formatIp(string $ip): string
     {
         $ip = trim($ip);
         if ($ip === '') {
             return '—';
         }
-        if (strlen($ip) === 64 && ctype_xdigit($ip)) {
-            return 'Hashed';
+        if (self::isLegacyHashedIp($ip)) {
+            return '(hashed — clear old data)';
         }
 
         return $ip;

@@ -156,6 +156,27 @@ final class VisitorAnalyticsRepository
         return $rows;
     }
 
+    public function clearLegacyHashed(): int
+    {
+        $stmt = $this->pdo->query(
+            "SELECT COUNT(*) FROM visitor_events
+             WHERE ip_address <> ''
+               AND ip_address NOT LIKE '%.%'
+               AND ip_address NOT LIKE '%:%'"
+        );
+        $count = (int) ($stmt ? $stmt->fetchColumn() : 0);
+        if ($count > 0) {
+            $this->pdo->exec(
+                "DELETE FROM visitor_events
+                 WHERE ip_address <> ''
+                   AND ip_address NOT LIKE '%.%'
+                   AND ip_address NOT LIKE '%:%'"
+            );
+        }
+
+        return $count;
+    }
+
     public function clearAll(): int
     {
         $count = (int) ($this->pdo->query('SELECT COUNT(*) FROM visitor_events')?->fetchColumn() ?: 0);
