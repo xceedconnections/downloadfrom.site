@@ -112,7 +112,7 @@ class VideoService
             return [
                 'success' => false,
                 'error' => 'fetch_failed',
-                'message' => 'Unable to retrieve download links. Please try again later.',
+                'message' => 'Unable to retrieve download links. The server may need yt-dlp installed — run deploy.sh on the VPS, then try again.',
             ];
         }
 

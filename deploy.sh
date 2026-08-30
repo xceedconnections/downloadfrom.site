@@ -24,9 +24,16 @@ for dir in storage storage/cache storage/logs storage/data assets/uploads; do
     fi
 done
 
-# yt-dlp binary (Linux)
-if [ -f "$ROOT/bin/yt-dlp" ]; then
-    chmod +x "$ROOT/bin/yt-dlp" 2>/dev/null || true
+# yt-dlp binary (Linux) — required for YouTube/TikTok/SoundCloud downloads
+YTDLP="$ROOT/bin/yt-dlp"
+if [ ! -x "$YTDLP" ]; then
+    echo "[deploy] downloading yt-dlp..."
+    curl -fsSL "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp" -o "$YTDLP" || {
+        echo "[deploy] WARNING: failed to download yt-dlp — video/audio downloads may not work"
+    }
+fi
+if [ -f "$YTDLP" ]; then
+    chmod +x "$YTDLP" 2>/dev/null || true
 fi
 
 # Seed MySQL if empty (safe to run every deploy — skips existing stores)

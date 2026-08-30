@@ -85,7 +85,7 @@ final class YtDlpFormatLinks
                 continue;
             }
 
-            $abr = (int) round((float) ($format['abr'] ?? $format['tbr'] ?? 0));
+            $abr = self::audioBitrate($format);
             if ($abr <= 0) {
                 continue;
             }
@@ -125,6 +125,22 @@ final class YtDlpFormatLinks
         }
 
         return $links;
+    }
+
+    /** @param array<string, mixed> $format */
+    private static function audioBitrate(array $format): int
+    {
+        $abr = (int) round((float) ($format['abr'] ?? $format['tbr'] ?? 0));
+        if ($abr > 0) {
+            return $abr;
+        }
+
+        $bitrate = (int) ($format['bitrate'] ?? $format['filesize'] ?? $format['averageBitrate'] ?? 0);
+        if ($bitrate > 10000) {
+            return (int) round($bitrate / 1000);
+        }
+
+        return 0;
     }
 
     /** @param array<string, mixed> $format */

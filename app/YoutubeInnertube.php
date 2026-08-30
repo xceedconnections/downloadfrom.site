@@ -9,8 +9,27 @@ namespace App;
  */
 class YoutubeInnertube
 {
+    /** @var list<array{0: string, 1: string, 2: string}> */
+    private const PLAYER_CLIENTS = [
+        ['ANDROID', '19.45.36', 'com.google.android.youtube/19.45.36 (Linux; U; Android 11) gzip'],
+        ['IOS', '19.45.4', 'com.google.ios.youtube/19.45.4 (iPhone14,3; U; CPU iOS 15_6 like Mac OS X)'],
+        ['TVHTML5_SIMPLY_EMBEDDED_PLAYER', '2.0', 'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version'],
+        ['WEB', '2.20250101.00.00', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'],
+    ];
+
     public function __construct(private HttpClient $http)
     {
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    public function extractVideoLinks(string $url): array
+    {
+        $playerData = $this->fetchPlayerData($url);
+        if ($playerData === null) {
+            return [];
+        }
+
+        return $this->parseVideoFormats($playerData);
     }
 
     /** @return array<int, array<string, mixed>> */
@@ -32,29 +51,34 @@ class YoutubeInnertube
             return null;
         }
 
-        $payload = json_encode([
-            'context' => [
-                'client' => [
-                    'clientName' => 'ANDROID',
-                    'clientVersion' => '19.09.37',
-                    'androidSdkVersion' => 30,
-                    'hl' => 'en',
-                    'gl' => 'US',
+        foreach (self::PLAYER_CLIENTS as [$clientName, $clientVersion, $userAgent]) {
+            $payload = json_encode([
+                'context' => [
+                    'client' => [
+                        'clientName' => $clientName,
+                        'clientVersion' => $clientVersion,
+                        'hl' => 'en',
+                        'gl' => 'US',
+                    ],
                 ],
-            ],
-            'videoId' => $videoId,
-        ]);
+                'videoId' => $videoId,
+            ]);
 
-        $response = $this->http->post(
-            'https://www.youtube.com/youtubei/v1/player?prettyPrint=false',
-            $payload !== false ? $payload : '{}',
-            [
-                'Content-Type: application/json',
-                'User-Agent: com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip',
-            ]
-        );
+            $response = $this->http->post(
+                'https://www.youtube.com/youtubei/v1/player?prettyPrint=false',
+                $payload !== false ? $payload : '{}',
+                [
+                    'Content-Type: application/json',
+                    'User-Agent: ' . $userAgent,
+                    'Origin: https://www.youtube.com',
+                    'Referer: https://www.youtube.com/',
+                ]
+            );
 
-        if ($response['success'] && !empty($response['body'])) {
+            if (!$response['success'] || empty($response['body'])) {
+                continue;
+            }
+
             $data = json_decode($response['body'], true);
             if (is_array($data) && !empty($data['streamingData'])) {
                 return $data;
@@ -77,6 +101,79 @@ class YoutubeInnertube
     }
 
     /** @param array<string, mixed> $data @return array<int, array<string, mixed>> */
+    private function parseVideoFormats(array $data): array
+    {
+        $streams = $data['streamingData'] ?? null;
+        if (!is_array($streams)) {
+            return [];
+        }
+
+        $allFormats = array_merge(
+            $streams['formats'] ?? [],
+            $streams['adaptiveFormats'] ?? []
+        );
+
+        $bestCombined = [];
+        $bestVideo = [];
+
+        foreach ($allFormats as $format) {
+            if (!is_array($format)) {
+                continue;
+            }
+
+            $mediaUrl = self::formatUrl($format);
+            if ($mediaUrl === null || str_contains($mediaUrl, '.m3u8')) {
+                continue;
+            }
+
+            $mime = (string) ($format['mimeType'] ?? '');
+            if (!str_contains($mime, 'video')) {
+                continue;
+            }
+
+            $height = (int) ($format['height'] ?? 0);
+            if ($height <= 0) {
+                continue;
+            }
+
+            $hasAudio = !empty($format['audioQuality']) || str_contains($mime, 'audio/mp4');
+            if ($hasAudio) {
+                if (!isset($bestCombined[$height]) || $height >= (int) ($bestCombined[$height]['height'] ?? 0)) {
+                    $bestCombined[$height] = $format + ['_url' => $mediaUrl, '_combined' => true];
+                }
+            } elseif (!isset($bestVideo[$height])) {
+                $bestVideo[$height] = $format + ['_url' => $mediaUrl, '_combined' => false];
+            }
+        }
+
+        $heights = array_unique(array_merge(array_keys($bestCombined), array_keys($bestVideo)));
+        rsort($heights, SORT_NUMERIC);
+
+        $links = [];
+        foreach ($heights as $height) {
+            $format = $bestCombined[$height] ?? $bestVideo[$height] ?? null;
+            if ($format === null) {
+                continue;
+            }
+
+            $combined = !empty($format['_combined']);
+            $label = "{$height}p MP4" . ($combined ? '' : ' (Video only)');
+
+            $links[] = [
+                'type' => 'download',
+                'label' => $label,
+                'url' => (string) $format['_url'],
+                'quality' => "{$height}p",
+                'download' => true,
+                'ext' => 'mp4',
+                'combined' => $combined,
+            ];
+        }
+
+        return $links;
+    }
+
+    /** @param array<string, mixed> $data @return array<int, array<string, mixed>> */
     private function parseAudioFormats(array $data): array
     {
         $streams = $data['streamingData'] ?? null;
@@ -95,8 +192,8 @@ class YoutubeInnertube
                 continue;
             }
 
-            $mediaUrl = (string) ($format['url'] ?? '');
-            if ($mediaUrl === '' || str_contains($mediaUrl, '.m3u8')) {
+            $mediaUrl = self::formatUrl($format);
+            if ($mediaUrl === null || str_contains($mediaUrl, '.m3u8')) {
                 continue;
             }
 
@@ -105,16 +202,18 @@ class YoutubeInnertube
                 continue;
             }
 
-            // MP3-compatible AAC streams only (skip WebM/Opus).
             if (str_contains($mime, 'webm') || str_contains($mime, 'opus')) {
                 continue;
             }
 
-            $bitrate = (int) ($format['bitrate'] ?? $format['averageBitrate'] ?? 0);
-            $ext = 'm4a';
-            $key = (string) max(1, (int) round($bitrate / 1000));
-            if (!isset($bestByBitrate[$key]) || $bitrate > (int) ($bestByBitrate[$key]['bitrate'] ?? 0)) {
-                $bestByBitrate[$key] = $format + ['_ext' => $ext, 'bitrate' => $bitrate];
+            $abr = self::audioBitrate($format);
+            if ($abr <= 0) {
+                continue;
+            }
+
+            $key = (string) $abr;
+            if (!isset($bestByBitrate[$key]) || self::audioBitrate($bestByBitrate[$key]) < $abr) {
+                $bestByBitrate[$key] = $format + ['_url' => $mediaUrl];
             }
         }
 
@@ -122,17 +221,15 @@ class YoutubeInnertube
             return [];
         }
 
-        uasort($bestByBitrate, static fn(array $a, array $b): int => ($b['bitrate'] ?? 0) <=> ($a['bitrate'] ?? 0));
+        uksort($bestByBitrate, static fn(string $a, string $b): int => (int) $b <=> (int) $a);
 
         $links = [];
         foreach ($bestByBitrate as $key => $format) {
             $kbps = max(1, (int) $key);
-            $codecLabel = ' AAC';
-
             $links[] = [
                 'type' => 'download',
-                'label' => "MP3 {$kbps} kbps{$codecLabel}",
-                'url' => (string) $format['url'],
+                'label' => "MP3 {$kbps} kbps AAC",
+                'url' => (string) $format['_url'],
                 'quality' => "{$kbps}k",
                 'download' => true,
                 'ext' => 'mp3',
@@ -141,7 +238,47 @@ class YoutubeInnertube
             ];
         }
 
-        return array_slice(array_values($links), 0, 6);
+        return array_slice(array_values($links), 0, 8);
+    }
+
+    /** @param array<string, mixed> $format */
+    private static function formatUrl(array $format): ?string
+    {
+        $mediaUrl = (string) ($format['url'] ?? '');
+        if ($mediaUrl !== '') {
+            return $mediaUrl;
+        }
+
+        $cipher = (string) ($format['signatureCipher'] ?? $format['cipher'] ?? '');
+        if ($cipher === '') {
+            return null;
+        }
+
+        parse_str($cipher, $parts);
+        $baseUrl = (string) ($parts['url'] ?? '');
+        if ($baseUrl === '') {
+            return null;
+        }
+
+        $sig = (string) ($parts['s'] ?? '');
+        if ($sig === '') {
+            return $baseUrl;
+        }
+
+        $sp = (string) ($parts['sp'] ?? 'sig');
+        return $baseUrl . '&' . $sp . '=' . urlencode(urldecode($sig));
+    }
+
+    /** @param array<string, mixed> $format */
+    private static function audioBitrate(array $format): int
+    {
+        $abr = (int) round((float) ($format['abr'] ?? $format['tbr'] ?? 0));
+        if ($abr > 0) {
+            return $abr;
+        }
+
+        $bitrate = (int) ($format['bitrate'] ?? $format['averageBitrate'] ?? 0);
+        return $bitrate > 0 ? (int) round($bitrate / 1000) : 0;
     }
 
     /** @return array<string, mixed>|null */

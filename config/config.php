@@ -65,7 +65,7 @@ $config = [
     ],
 
     'ytdlp' => [
-        'path' => dirname(__DIR__) . '/bin/yt-dlp.exe',
+        'path' => '',
         'enabled' => true,
     ],
 

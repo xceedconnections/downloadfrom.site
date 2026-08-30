@@ -9,6 +9,15 @@ namespace App;
  */
 class YtDlpHelper
 {
+    /** @var list<string|null> */
+    private const PLAYER_CLIENT_ATTEMPTS = [
+        null,
+        'android,web',
+        'ios,web',
+        'tv,web',
+        'mweb,web',
+    ];
+
     /** @param array<string, mixed> $config */
     public static function resolvePath(array $config): ?string
     {
@@ -21,10 +30,10 @@ class YtDlpHelper
 
         $root = dirname(__DIR__);
         $candidates = [
-            $root . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'yt-dlp.exe',
             $root . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'yt-dlp',
-            'yt-dlp.exe',
+            $root . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'yt-dlp.exe',
             'yt-dlp',
+            'yt-dlp.exe',
         ];
 
         foreach ($candidates as $path) {
@@ -59,6 +68,8 @@ class YtDlpHelper
         if ($pf86 = getenv('ProgramFiles(x86)')) {
             $candidates[] = $pf86 . DIRECTORY_SEPARATOR . 'nodejs' . DIRECTORY_SEPARATOR . 'node.exe';
         }
+        $candidates[] = '/usr/bin/node';
+        $candidates[] = '/usr/local/bin/node';
         $candidates[] = 'node.exe';
         $candidates[] = 'node';
 
@@ -85,6 +96,29 @@ class YtDlpHelper
      */
     public static function fetchJson(string $url, array $config = [], array $options = []): ?array
     {
+        if (array_key_exists('player_clients', $options)) {
+            return self::fetchJsonAttempt($url, $config, $options);
+        }
+
+        foreach (self::PLAYER_CLIENT_ATTEMPTS as $playerClients) {
+            $data = self::fetchJsonAttempt($url, $config, [
+                'player_clients' => $playerClients,
+                'format' => $options['format'] ?? null,
+            ]);
+            if ($data !== null) {
+                return $data;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     * @param array{player_clients?: string|null, format?: string|null} $options
+     */
+    private static function fetchJsonAttempt(string $url, array $config, array $options): ?array
+    {
         $ytdlpPath = self::resolvePath($config);
         if ($ytdlpPath === null) {
             return null;
@@ -95,9 +129,7 @@ class YtDlpHelper
             ? ' --js-runtimes ' . escapeshellarg('node:' . $nodePath)
             : ' --js-runtimes node';
 
-        $playerClients = array_key_exists('player_clients', $options)
-            ? $options['player_clients']
-            : null;
+        $playerClients = $options['player_clients'] ?? null;
 
         $cmd = escapeshellarg($ytdlpPath)
             . ' -j --no-playlist --no-warnings --no-check-certificates';
@@ -116,13 +148,11 @@ class YtDlpHelper
 
         $output = self::exec($cmd);
         if ($output === null || trim($output) === '') {
-            Logger::error('yt-dlp returned empty output for: ' . substr($url, 0, 80));
             return null;
         }
 
         $data = self::parseJsonOutput($output);
         if (!is_array($data) || empty($data['formats'])) {
-            Logger::error('yt-dlp JSON parse failed: ' . substr($output, 0, 300));
             return null;
         }
 
