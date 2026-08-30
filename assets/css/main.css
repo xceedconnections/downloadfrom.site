@@ -945,6 +945,18 @@ body {
     border-top: 3px solid var(--color-primary);
 }
 
+.result-download-heading {
+    margin: 0 0 .75rem;
+    font-size: 1rem;
+}
+
+.result-download-empty {
+    margin: 0;
+    color: var(--color-text-muted, #64748b);
+    font-size: .875rem;
+    line-height: 1.5;
+}
+
 .result-download-col .links-table {
     margin-top: 0;
 }

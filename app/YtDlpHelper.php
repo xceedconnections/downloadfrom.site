@@ -100,17 +100,26 @@ class YtDlpHelper
             return self::fetchJsonAttempt($url, $config, $options);
         }
 
+        $best = null;
+        $bestCount = 0;
+
         foreach (self::PLAYER_CLIENT_ATTEMPTS as $playerClients) {
             $data = self::fetchJsonAttempt($url, $config, [
                 'player_clients' => $playerClients,
                 'format' => $options['format'] ?? null,
             ]);
-            if ($data !== null) {
-                return $data;
+            if ($data === null) {
+                continue;
+            }
+
+            $count = count($data['formats'] ?? []);
+            if ($count > $bestCount) {
+                $best = $data;
+                $bestCount = $count;
             }
         }
 
-        return null;
+        return $best;
     }
 
     /**

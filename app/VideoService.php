@@ -9,7 +9,7 @@ use App\Storage\DatabaseConnection;
 
 class VideoService
 {
-    private const CACHE_VERSION = 'v2';
+    private const CACHE_VERSION = 'v3';
 
     private PlatformDetector $detector;
     private Cache $cache;
@@ -74,26 +74,29 @@ class VideoService
         $sections = [];
         $flatLinks = [];
         $baseData = null;
+        $anyLinks = false;
 
         foreach ($available as $serviceId) {
             $result = $this->processForService($url, $serviceId);
-            if (!$result['success']) {
-                continue;
-            }
-
-            $data = $result['data'];
             $sectionLinks = [];
-            foreach ($data['links'] ?? [] as $link) {
-                $entry = array_merge($link, [
-                    'service' => $serviceId,
-                    'service_type' => ServiceConfig::serviceType($serviceId),
-                ]);
-                $sectionLinks[] = $entry;
-                $flatLinks[] = $entry;
+
+            if ($result['success']) {
+                if ($baseData === null) {
+                    $baseData = $result['data'];
+                }
+
+                foreach ($result['data']['links'] ?? [] as $link) {
+                    $entry = array_merge($link, [
+                        'service' => $serviceId,
+                        'service_type' => ServiceConfig::serviceType($serviceId),
+                    ]);
+                    $sectionLinks[] = $entry;
+                    $flatLinks[] = $entry;
+                }
             }
 
-            if ($sectionLinks === []) {
-                continue;
+            if ($sectionLinks !== []) {
+                $anyLinks = true;
             }
 
             $sections[] = [
@@ -102,28 +105,14 @@ class VideoService
                 'label' => ServiceConfig::serviceLabel($serviceId, $this->settings),
                 'links' => $sectionLinks,
             ];
-
-            if ($baseData === null) {
-                $baseData = $data;
-            }
         }
 
-        if ($sections === []) {
+        if (!$anyLinks) {
             return [
                 'success' => false,
                 'error' => 'fetch_failed',
                 'message' => 'Unable to retrieve download links. The server may need yt-dlp installed — run deploy.sh on the VPS, then try again.',
             ];
-        }
-
-        if (count($sections) === 1) {
-            $single = $sections[0];
-            $data = $baseData ?? [];
-            $data['links'] = $single['links'];
-            $data['service'] = $single['service'];
-            $data['service_type'] = $single['service_type'];
-
-            return ['success' => true, 'data' => $data, 'cached' => false];
         }
 
         $combined = [

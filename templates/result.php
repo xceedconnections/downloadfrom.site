@@ -98,7 +98,7 @@ $hasAudioLinks = !empty($audioSection['links']);
 
 $hasAnyLinks = $hasVideoLinks || $hasAudioLinks;
 
-$showCombinedSplit = $isCombined && $hasVideoLinks && $hasAudioLinks;
+$showCombinedSplit = $isCombined && count($data['sections'] ?? []) > 1;
 
 
 
@@ -207,6 +207,8 @@ $showCombinedSplit = $isCombined && $hasVideoLinks && $hasAudioLinks;
 
                             <div class="result-download-col result-download-video">
 
+                                <?php if ($hasVideoLinks): ?>
+
                                 <?php
 
                                     $sectionLabel = (string) ($videoSection['label'] ?? 'Download Video');
@@ -219,9 +221,19 @@ $showCombinedSplit = $isCombined && $hasVideoLinks && $hasAudioLinks;
 
                                 ?>
 
+                                <?php else: ?>
+
+                                <h3 class="result-download-heading">Download Video</h3>
+
+                                <p class="result-download-empty">No video download links are available for this URL.</p>
+
+                                <?php endif; ?>
+
                             </div>
 
                             <div class="result-download-col result-download-audio">
+
+                                <?php if ($hasAudioLinks): ?>
 
                                 <?php
 
@@ -234,6 +246,14 @@ $showCombinedSplit = $isCombined && $hasVideoLinks && $hasAudioLinks;
                                     require __DIR__ . '/partials/result-links.php';
 
                                 ?>
+
+                                <?php else: ?>
+
+                                <h3 class="result-download-heading">Download Audio (MP3)</h3>
+
+                                <p class="result-download-empty">No MP3 download links are available for this URL.</p>
+
+                                <?php endif; ?>
 
                             </div>
 
