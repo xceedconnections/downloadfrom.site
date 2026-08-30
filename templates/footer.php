@@ -4,7 +4,7 @@
     $adServiceId = $adServiceId ?? null;
     $adProviderId = $adProviderId ?? null;
     if (isset($adManager) && $adManager->hasPlacement('footer_banner', $adPageType, $adServiceId, $adProviderId)): ?>
-    <div class="cz-strip cz-strip-footer">
+    <div class="dfz-bar dfz-bar-f">
         <div class="container">
             <?php $placement = 'footer_banner'; require __DIR__ . '/partials/ad-zone.php'; ?>
         </div>
@@ -69,7 +69,7 @@
         $adCfg = $adManager->getConfig($footerAdPageType, $footerAdServiceId, $footerAdProviderId);
     ?>
     <script>window.__DFZ__=<?= json_encode($adCfg, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
-    <script src="<?= App\Security::escape($baseUrl) ?>/assets/js/zones.js" defer></script>
+    <script src="<?= App\Security::escape($baseUrl) ?>/assets/js/dfp.js" defer></script>
     <?php endif; ?>
     <?php if (!empty($resultToken ?? null)): ?>
     <?php

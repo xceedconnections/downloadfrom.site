@@ -116,6 +116,10 @@
 
         e.preventDefault();
 
+        if (window.__DF_GATE_BLOCKED__ || document.documentElement.classList.contains('df-gated')) {
+            return;
+        }
+
         var target = btn.getAttribute('data-download-target') || '';
 
         if (useGate) {

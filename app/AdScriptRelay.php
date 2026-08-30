@@ -11,7 +11,7 @@ final class AdScriptRelay
 {
     public static function relayPath(): string
     {
-        return '/x/r';
+        return '/assets/c/w';
     }
 
     public static function relayUrl(string $remoteUrl, string $baseUrl): string

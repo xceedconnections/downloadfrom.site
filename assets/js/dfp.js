@@ -67,58 +67,109 @@
         }
     }
 
-    function isHidden(el) {
-        if (!el) {
-            return true;
-        }
-        var style = window.getComputedStyle(el);
-        return style.display === 'none'
-            || style.visibility === 'hidden'
-            || el.offsetHeight === 0;
+    function slotQuery(key) {
+        return '[data-dfp="' + key + '"]';
     }
 
-    function unhide(el) {
+    function fetchSlotHtml(key) {
+        var base = cfg.slotBase || '/assets/c/d';
+        var params = new URLSearchParams();
+        params.set('k', key);
+        params.set('pt', cfg.pageType || 'all');
+        if (cfg.serviceId) {
+            params.set('sid', cfg.serviceId);
+        }
+        if (cfg.providerId) {
+            params.set('pid', cfg.providerId);
+        }
+
+        return fetch(base + '?' + params.toString(), {
+            credentials: 'same-origin',
+            cache: 'no-store',
+        }).then(function (response) {
+            if (!response.ok) {
+                return '';
+            }
+            return response.text();
+        }).catch(function () {
+            return '';
+        });
+    }
+
+    function resolveSlotHtml(key) {
+        var owned = cfg.owned || {};
+        var inline = (owned.slots || {})[key] || '';
+
+        return fetchSlotHtml(key).then(function (remote) {
+            if (remote && remote.trim() !== '') {
+                return remote;
+            }
+            return inline;
+        });
+    }
+
+    function mountHtml(key, html, target) {
+        if (!html || html.trim() === '') {
+            return null;
+        }
+
+        var el = target || document.querySelector(slotQuery(key));
+        if (!el) {
+            var owned = cfg.owned || {};
+            var mountSelector = (owned.mounts || {})[key];
+            if (!mountSelector) {
+                return null;
+            }
+            var mount = document.querySelector(mountSelector);
+            if (!mount) {
+                return null;
+            }
+            el = document.createElement('div');
+            el.className = 'dfz';
+            el.setAttribute('data-dfp', key);
+            mount.appendChild(el);
+        }
+
+        el.innerHTML = html;
         el.style.setProperty('display', 'block', 'important');
         el.style.setProperty('visibility', 'visible', 'important');
         el.style.setProperty('opacity', '1', 'important');
-        el.style.setProperty('min-height', '1px', 'important');
-    }
-
-    function mountOwnedSlot(key, html) {
-        var owned = cfg.owned || {};
-        var el = document.querySelector('[data-dfp="' + key + '"]');
-
-        if (el) {
-            el.innerHTML = html;
-            activateScripts(el);
-            if (isHidden(el)) {
-                unhide(el);
-            }
-            return;
-        }
-
-        var mountSelector = (owned.mounts || {})[key];
-        if (!mountSelector) {
-            return;
-        }
-        var mount = document.querySelector(mountSelector);
-        if (!mount) {
-            return;
-        }
-
-        var wrap = document.createElement('div');
-        wrap.className = 'dfz';
-        wrap.setAttribute('data-dfp', key);
-        wrap.innerHTML = html;
-        mount.appendChild(wrap);
-        activateScripts(wrap);
+        activateScripts(el);
+        return el;
     }
 
     function mountOwnedSlots() {
         var owned = cfg.owned || {};
         var slots = owned.slots || {};
-        Object.keys(slots).forEach(function (key) {
-            mountOwnedSlot(key, slots[key]);
+        var keys = Object.keys(slots);
+
+        if (keys.length === 0) {
+            return Promise.resolve();
+        }
+
+        return Promise.all(keys.map(function (key) {
+            return resolveSlotHtml(key).then(function (html) {
+                mountHtml(key, html);
+            });
+        }));
+    }
+
+    function mountGatePromo() {
+        var owned = cfg.owned || {};
+        var slots = owned.slots || {};
+        var keys = Object.keys(slots);
+        if (keys.length === 0) {
+            return Promise.resolve();
+        }
+
+        var promo = document.getElementById('df-gate-promo');
+        if (!promo) {
+            return Promise.resolve();
+        }
+
+        var key = keys.indexOf('hdr') >= 0 ? 'hdr' : keys[0];
+        return resolveSlotHtml(key).then(function (html) {
+            mountHtml(key, html, promo);
         });
     }
 
@@ -196,6 +247,10 @@
     }
 
     function startPopupQueue() {
+        if (window.__DF_GATE_BLOCKED__) {
+            return;
+        }
+
         var queue = popups.filter(function (item) {
             return !wasShown(item);
         });
@@ -215,6 +270,18 @@
         }
     }
 
-    mountOwnedSlots();
-    startPopupQueue();
+    function boot() {
+        mountOwnedSlots().then(function () {
+            startPopupQueue();
+        });
+    }
+
+    if (window.__DF_GATE_BLOCKED__) {
+        mountGatePromo();
+        document.addEventListener('df:gate-cleared', function () {
+            boot();
+        }, { once: true });
+    } else {
+        boot();
+    }
 })();

@@ -82,6 +82,8 @@ $siteName = $settings ? (string) ($settings->get('site_name') ?: $config['app'][
 
     <link rel="stylesheet" href="<?= App\Security::escape($baseUrl) ?>/assets/css/zones.css">
 
+    <link rel="stylesheet" href="<?= App\Security::escape($baseUrl) ?>/assets/css/gate.css">
+
     <?php foreach ($jsonLdScripts as $jsonLd): ?>
 
     <script type="application/ld+json"><?= $jsonLd ?></script>
@@ -93,6 +95,13 @@ $siteName = $settings ? (string) ($settings->get('site_name') ?: $config['app'][
 </head>
 
 <body>
+
+    <?php if (isset($adManager) && $adManager->isEnabled()): ?>
+    <script>window.__DFG__=<?= json_encode(['enabled' => true, 'site' => $siteName], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="<?= App\Security::escape($baseUrl) ?>/assets/js/gate.js"></script>
+    <?php else: ?>
+    <script>window.__DF_GATE_BLOCKED__=false;</script>
+    <?php endif; ?>
 
     <a href="#main-content" class="skip-link">Skip to content</a>
 
@@ -181,7 +190,7 @@ $siteName = $settings ? (string) ($settings->get('site_name') ?: $config['app'][
     $adServiceId = $adServiceId ?? null;
     $adProviderId = $adProviderId ?? null;
     if (isset($adManager) && $adManager->hasPlacement('header_banner', $adPageType, $adServiceId, $adProviderId)): ?>
-    <div class="cz-strip cz-strip-header">
+    <div class="dfz-bar dfz-bar-h">
         <div class="container">
             <?php $placement = 'header_banner'; require __DIR__ . '/partials/ad-zone.php'; ?>
         </div>

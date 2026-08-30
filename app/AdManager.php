@@ -283,6 +283,104 @@ class AdManager
         return [$this->pickRotatedAd($matches, self::placementMapKey($placement, $serviceId, $providerId))];
     }
 
+    /** @return array<int, array> */
+    public function getAllAdsForPlacement(string $placement, string $pageType = 'all', ?string $serviceId = null, ?string $providerId = null): array
+    {
+        if (!$this->isEnabled()) {
+            return [];
+        }
+
+        foreach (self::placementMapLookupKeys($placement, $serviceId, $providerId) as $mapKey) {
+            $adIds = $this->getPlacementMap()[$mapKey] ?? [];
+            if ($adIds === []) {
+                continue;
+            }
+            $ads = $this->resolveEnabledAds($adIds);
+            if ($ads !== []) {
+                return $ads;
+            }
+        }
+
+        $matches = [];
+        foreach ($this->allAds() as $ad) {
+            if (empty($ad['enabled'])) {
+                continue;
+            }
+            $placements = $ad['placements'] ?? [];
+            $matched = false;
+            foreach (self::placementAliases($placement) as $alias) {
+                if (in_array($alias, $placements, true)) {
+                    $matched = true;
+                    break;
+                }
+            }
+            if (!$matched) {
+                continue;
+            }
+            $pages = $ad['pages'] ?? ['all'];
+            if (!$this->pageMatches($pages, $pageType, $serviceId)) {
+                continue;
+            }
+            $matches[] = $ad;
+        }
+
+        usort($matches, static fn(array $a, array $b): int => ($b['priority'] ?? 0) <=> ($a['priority'] ?? 0));
+
+        return $matches;
+    }
+
+    /** @return array<int, string> */
+    public static function placementsForPage(string $pageType): array
+    {
+        return match ($pageType) {
+            'home' => ['header_banner', 'home_hero_sidebar', 'home_after_form', 'home_middle', 'home_bottom', 'footer_banner'],
+            'platform', 'video_platform', 'audio_platform' => ['header_banner', 'platform_hero_sidebar', 'platform_top', 'platform_bottom', 'footer_banner'],
+            'result', 'video_result', 'audio_result' => ['header_banner', 'result_top', 'result_sidebar', 'result_bottom', 'footer_banner'],
+            default => ['header_banner', 'footer_banner'],
+        };
+    }
+
+    public static function placementDomKey(string $placement): string
+    {
+        return match ($placement) {
+            'header_banner' => 'hdr',
+            'footer_banner' => 'ftr',
+            'home_hero_sidebar' => 'hhs',
+            'home_after_form' => 'haf',
+            'home_middle' => 'hm',
+            'home_bottom' => 'hb',
+            'platform_hero_sidebar' => 'phs',
+            'platform_top' => 'pt',
+            'platform_bottom' => 'pb',
+            'result_top' => 'rt',
+            'result_sidebar' => 'rs',
+            'result_bottom' => 'rb',
+            'download_modal' => 'dm',
+            default => substr(md5($placement), 0, 6),
+        };
+    }
+
+    /** @return array<string, mixed> */
+    public function buildOwnedConfig(?string $pageType = 'all', ?string $serviceId = null, ?string $providerId = null): array
+    {
+        $slots = [];
+        foreach (self::placementsForPage((string) $pageType) as $placement) {
+            $html = $this->renderOwnedSlotContent($placement, (string) $pageType, $serviceId, $providerId);
+            if ($html !== '') {
+                $slots[self::placementDomKey($placement)] = $html;
+            }
+        }
+
+        return [
+            'slots' => $slots,
+            'mounts' => [
+                'hhs' => '.hero-side-slot',
+                'phs' => '.hero-side-slot',
+                'rs' => '.result-side-slot',
+            ],
+        ];
+    }
+
     /** @param array<int, string> $adIds @return array<int, array> */
     private function resolveEnabledAds(array $adIds): array
     {
@@ -386,18 +484,51 @@ class AdManager
 
     public function renderZone(string $placement, string $pageType = 'all', ?string $serviceId = null, ?string $providerId = null): string
     {
+        if ($this->getForPlacement($placement, $pageType, $serviceId, $providerId) === []) {
+            return '';
+        }
+
+        $key = self::placementDomKey($placement);
+
+        return '<div class="dfz" data-dfp="' . Security::escape($key) . '"></div>';
+    }
+
+    public static function placementFromDomKey(string $key): ?string
+    {
+        static $map = null;
+        if ($map === null) {
+            $map = [];
+            foreach (array_keys(self::PLACEMENTS) as $placement) {
+                $map[self::placementDomKey($placement)] = $placement;
+            }
+        }
+
+        return $map[$key] ?? null;
+    }
+
+    public function renderOwnedSlotContent(string $placement, string $pageType = 'all', ?string $serviceId = null, ?string $providerId = null): string
+    {
         $ads = $this->getForPlacement($placement, $pageType, $serviceId, $providerId);
         if ($ads === []) {
             return '';
         }
 
-        $html = '<div class="cz-slot cz-slot-' . Security::escape($placement) . '">';
+        $html = '';
         foreach ($ads as $ad) {
             $html .= $this->renderAd($ad, $placement);
         }
-        $html .= '</div>';
 
         return $html;
+    }
+
+    public function renderOwnedSlotByKey(string $key, string $pageType = 'all', ?string $serviceId = null, ?string $providerId = null): string
+    {
+        $placement = self::placementFromDomKey($key);
+        if ($placement === null) {
+            return '';
+        }
+
+        return $this->renderOwnedSlotContent($placement, $pageType, $serviceId, $providerId);
     }
 
     /** @return array<int, array> */
@@ -418,7 +549,7 @@ class AdManager
         $id = Security::escape($ad['id'] ?? uniqid('z', true));
         $content = $ad['content'] ?? [];
 
-        $wrapStart = '<div class="cz-unit cz-type-' . Security::escape($type) . '" data-zid="' . $id . '">';
+        $wrapStart = '<div class="dfz-u dfz-t-' . Security::escape($type) . '" data-zid="' . $id . '">';
         $wrapEnd = '</div>';
 
         return match ($type) {
@@ -452,11 +583,11 @@ class AdManager
             return '';
         }
         $link = trim((string) ($content['link_url'] ?? ''));
-        $alt = Security::escape($content['alt'] ?? 'Advertisement');
-        $imgTag = '<img src="' . Security::escape($img) . '" alt="' . $alt . '" class="cz-banner-img" loading="lazy">';
+        $alt = Security::escape($content['alt'] ?? 'Featured');
+        $imgTag = '<img src="' . Security::escape($img) . '" alt="' . $alt . '" class="dfz-img" loading="lazy">';
 
         if ($link !== '') {
-            return '<a href="' . Security::escape($link) . '" class="cz-link" target="_blank" rel="noopener noreferrer sponsored">' . $imgTag . '</a>';
+            return '<a href="' . Security::escape($link) . '" class="dfz-lk" target="_blank" rel="noopener noreferrer">' . $imgTag . '</a>';
         }
 
         return $imgTag;
@@ -466,7 +597,7 @@ class AdManager
     {
         $html = trim((string) ($content['html'] ?? ''));
         if ($html !== '') {
-            return '<div class="cz-text-html">' . $html . '</div>';
+            return '<div class="dfz-tx-html">' . $html . '</div>';
         }
 
         $text = trim((string) ($content['text'] ?? ''));
@@ -478,13 +609,13 @@ class AdManager
         $title = Security::escape($content['title'] ?? '');
         $body = Security::escape($text);
 
-        $inner = ($title !== '' ? '<strong class="cz-text-title">' . $title . '</strong>' : '') . '<p class="cz-text-body">' . $body . '</p>';
+        $inner = ($title !== '' ? '<strong class="dfz-tx-title">' . $title . '</strong>' : '') . '<p class="dfz-tx-body">' . $body . '</p>';
 
         if ($link !== '') {
-            return '<a href="' . Security::escape($link) . '" class="cz-text-link" target="_blank" rel="noopener noreferrer sponsored">' . $inner . '</a>';
+            return '<a href="' . Security::escape($link) . '" class="dfz-tx-lk" target="_blank" rel="noopener noreferrer">' . $inner . '</a>';
         }
 
-        return '<div class="cz-text">' . $inner . '</div>';
+        return '<div class="dfz-tx">' . $inner . '</div>';
     }
 
     private function renderHtml(array $content): string
@@ -499,7 +630,7 @@ class AdManager
 
         $code = AdScriptRelay::rewriteMarkup($code, $this->baseUrl, $this->relayScripts);
 
-        return '<div class="cz-html">' . $code . '</div>';
+        return '<div class="dfz-raw">' . $code . '</div>';
     }
 
     private function renderVideo(array $content): string
@@ -510,12 +641,12 @@ class AdManager
         }
 
         if (preg_match('#(?:youtube\.com/watch\?v=|youtu\.be/)([\w-]+)#', $url, $m)) {
-            return '<div class="cz-video-embed"><iframe src="https://www.youtube.com/embed/' . Security::escape($m[1]) . '" title="Media" loading="lazy" allowfullscreen></iframe></div>';
+            return '<div class="dfz-vid-wrap"><iframe src="https://www.youtube.com/embed/' . Security::escape($m[1]) . '" title="Media" loading="lazy" allowfullscreen></iframe></div>';
         }
 
         $src = $this->resolveMediaUrl($url);
 
-        return '<video class="cz-video" controls preload="none" src="' . Security::escape($src) . '"></video>';
+        return '<video class="dfz-vid" controls preload="none" src="' . Security::escape($src) . '"></video>';
     }
 
     private function renderNetwork(array $ad, array $content): string
@@ -585,12 +716,18 @@ class AdManager
     {
         return [
             'enabled' => $this->isEnabled(),
+            'gate' => $this->isEnabled(),
             'relay' => rtrim($this->baseUrl, '/') . AdScriptRelay::relayPath() . '?u=',
+            'slotBase' => rtrim($this->baseUrl, '/') . '/assets/c/d',
+            'pageType' => $pageType ?? 'all',
+            'serviceId' => $serviceId,
+            'providerId' => $providerId,
             'download_modal' => [
                 'enabled' => $this->getDownloadModalAds($serviceId, $providerId) !== [],
                 'countdown' => (int) ($this->data['download_modal_countdown'] ?? 5),
             ],
             'popup' => $this->buildPopupConfig($serviceId, $providerId),
+            'owned' => $this->buildOwnedConfig($pageType, $serviceId, $providerId),
         ];
     }
 
@@ -666,13 +803,13 @@ class AdManager
             }
             $inner = $html !== '' ? $this->renderHtml($content) : '';
             if ($title !== '') {
-                $inner = '<strong class="cz-text-title">' . Security::escape($title) . '</strong>' . $inner;
+                $inner = '<strong class="dfz-tx-title">' . Security::escape($title) . '</strong>' . $inner;
             }
             $link = trim((string) ($content['link_url'] ?? ''));
             if ($link !== '' && $html === '' && $title !== '') {
-                $inner = '<a href="' . Security::escape($link) . '" class="cz-text-link" target="_blank" rel="noopener noreferrer sponsored">' . $inner . '</a>';
+                $inner = '<a href="' . Security::escape($link) . '" class="dfz-tx-lk" target="_blank" rel="noopener noreferrer">' . $inner . '</a>';
             }
-            return '<div class="cz-layer-text">' . $inner . '</div>';
+            return '<div class="dfz-pop-tx">' . $inner . '</div>';
         }
 
         $html = trim((string) ($content['html'] ?? ''));

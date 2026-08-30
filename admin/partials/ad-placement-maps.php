@@ -177,6 +177,7 @@ $renderResultWireframe = static function (?string $serviceId, string $linksLabel
     <fieldset class="admin-fieldset ad-map-visual-fieldset">
         <legend>Assign ads on the layout</legend>
         <p class="admin-note">Each zone supports <strong>multiple ads</strong>. Banner zones rotate one ad per page view. Popup zones show every assigned popup in order. Empty zones fall back: provider → service hub → global.</p>
+        <p class="admin-note">Ads created here are your own content. They load through a same-origin endpoint so they still appear on the ad-blocker notice screen. Third-party tags in Settings → Custom Codes may remain blocked until the visitor disables their ad blocker.</p>
 
         <div class="ad-map-grid">
         <?php foreach ($mapPages as $pageId => $page):

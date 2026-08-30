@@ -693,7 +693,7 @@ body {
     min-width: 0;
 }
 
-.hero-side-slot .cz-slot {
+.hero-side-slot .dfz {
     background: var(--color-bg);
     border: 1px dashed var(--color-border);
     border-radius: var(--radius);
@@ -704,9 +704,9 @@ body {
     justify-content: center;
 }
 
-.hero-side-slot .cz-text,
-.hero-side-slot .cz-text-link,
-.hero-side-slot .cz-text-html {
+.hero-side-slot .dfz-tx,
+.hero-side-slot .dfz-tx-lk,
+.hero-side-slot .dfz-tx-html {
     background: var(--color-surface);
 }
 

@@ -84,6 +84,8 @@ class Router
             $path === '/terms' => $this->renderStatic('Terms of Service', 'terms'),
             $path === '/dmca' => $this->renderStatic('DMCA / Copyright Policy', 'dmca'),
             $path === '/contact' => $this->renderStatic('Contact', 'contact'),
+            $path === '/assets/c/w' => $this->handleScriptRelay(),
+            $path === '/assets/c/d' => $this->handleOwnedSlotDelivery(),
             $path === '/x/r' => $this->handleScriptRelay(),
             $path === '/' . ServiceConfig::PAGE_FAQ => $this->renderFaq(),
             $path === '/' . ServiceConfig::PAGE_VIDEO => $this->renderService(ServiceConfig::SERVICE_VIDEO),
@@ -279,12 +281,48 @@ class Router
         $providerId = trim((string) ($_GET['provider'] ?? ''));
         $providerId = $providerId !== '' ? $providerId : null;
 
-        $html = $this->adManager->renderZone($placement, $pageType, $serviceId, $providerId);
+        $html = $this->adManager->renderOwnedSlotContent($placement, $pageType, $serviceId, $providerId);
+        if ($html !== '') {
+            $key = AdManager::placementDomKey($placement);
+            $html = '<div class="dfz" data-dfp="' . Security::escape($key) . '">' . $html . '</div>';
+        }
 
         header('Content-Type: application/json; charset=utf-8');
         header('Cache-Control: private, max-age=300');
         header('X-Robots-Tag: noindex');
         echo json_encode(['html' => $html], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
+        exit;
+    }
+
+    private function handleOwnedSlotDelivery(): void
+    {
+        $key = trim((string) ($_GET['k'] ?? ''));
+        if ($key === '' || !preg_match('/^[a-z0-9]{2,8}$/', $key)) {
+            http_response_code(400);
+            header('Content-Type: text/html; charset=utf-8');
+            echo '';
+            exit;
+        }
+
+        if (!$this->adManager->isEnabled()) {
+            header('Content-Type: text/html; charset=utf-8');
+            header('Cache-Control: no-store');
+            echo '';
+            exit;
+        }
+
+        $pageType = trim((string) ($_GET['pt'] ?? 'all'));
+        $serviceId = trim((string) ($_GET['sid'] ?? ''));
+        $serviceId = $serviceId !== '' ? $serviceId : null;
+        $providerId = trim((string) ($_GET['pid'] ?? ''));
+        $providerId = $providerId !== '' ? $providerId : null;
+
+        $html = $this->adManager->renderOwnedSlotByKey($key, $pageType, $serviceId, $providerId);
+
+        header('Content-Type: text/html; charset=utf-8');
+        header('Cache-Control: private, no-store');
+        header('X-Robots-Tag: noindex');
+        echo $html;
         exit;
     }
 

@@ -115,6 +115,10 @@
     if (form) {
         var submitBtn = document.getElementById('url-form-submit');
         form.addEventListener('submit', function (e) {
+            if (window.__DF_GATE_BLOCKED__ || document.documentElement.classList.contains('df-gated')) {
+                e.preventDefault();
+                return;
+            }
             var val = urlInput ? urlInput.value.trim() : '';
             if (!val) {
                 e.preventDefault();
