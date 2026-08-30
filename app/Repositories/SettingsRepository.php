@@ -30,7 +30,7 @@ final class SettingsRepository
             $key = (string) ($row['setting_key'] ?? '');
             $value = (string) ($row['setting_value'] ?? '');
             match ($key) {
-                'analytics_enabled', 'maintenance_mode' => $settings[$key] = $value === '1',
+                'analytics_enabled', 'maintenance_mode', 'ads_block_adblock' => $settings[$key] = $value === '1',
                 default => $settings[$key] = $value,
             };
         }
@@ -69,6 +69,7 @@ final class SettingsRepository
             }
             $insert->execute(['analytics_enabled', !empty($merged['analytics_enabled']) ? '1' : '0']);
             $insert->execute(['maintenance_mode', !empty($merged['maintenance_mode']) ? '1' : '0']);
+            $insert->execute(['ads_block_adblock', !empty($merged['ads_block_adblock']) ? '1' : '0']);
 
             $codes = $merged['custom_codes'] ?? [];
             $insert->execute(['custom_codes_head', (string) ($codes['head'] ?? '')]);

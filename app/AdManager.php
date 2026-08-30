@@ -717,6 +717,7 @@ class AdManager
         return [
             'enabled' => $this->isEnabled(),
             'gate' => $this->isEnabled(),
+            'badge' => rtrim($this->baseUrl, '/') . '/assets/img/dfp-badge.svg',
             'relay' => rtrim($this->baseUrl, '/') . AdScriptRelay::relayPath() . '?u=',
             'slotBase' => rtrim($this->baseUrl, '/') . '/assets/c/d',
             'pageType' => $pageType ?? 'all',

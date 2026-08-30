@@ -31,8 +31,9 @@ $renderZonePicker = static function (
     ?string $serviceId = null,
     ?string $providerId = null,
     bool $popupZone = false
-) use ($placementMap, $allAds): void {
+) use ($placementMap, $allAds, $config): void {
     $mapKey = AdManager::placementMapKey($placementKey, $serviceId, $providerId);
+    $badgeUrl = rtrim((string) ($config['app']['url'] ?? ''), '/') . '/assets/img/dfp-badge.svg';
     $plabel = AdManager::PLACEMENTS[$placementKey] ?? $title;
     if ($providerId !== null) {
         $plabel .= ' (' . $providerId . ')';
@@ -56,7 +57,8 @@ $renderZonePicker = static function (
     ?>
     <div class="<?= Security::escape($classes) ?>" data-placement="<?= Security::escape($mapKey) ?>" data-popup-zone="<?= $popupZone ? '1' : '0' ?>">
         <span class="wf-ad-num"><?= Security::escape($num) ?></span>
-        <span class="wf-ad-title"><?= Security::escape($title) ?></span>
+        <img src="<?= Security::escape($badgeUrl) ?>" alt="" class="wf-ad-mark" width="110" height="26">
+        <span class="wf-ad-title wf-ad-title-muted"><?= Security::escape($title) ?></span>
         <?php if ($hint !== ''): ?>
         <span class="wf-ad-hint"><?= Security::escape($hint) ?></span>
         <?php endif; ?>

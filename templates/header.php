@@ -96,7 +96,10 @@ $siteName = $settings ? (string) ($settings->get('site_name') ?: $config['app'][
 
 <body>
 
-    <?php if (isset($adManager) && $adManager->isEnabled()): ?>
+    <?php
+    $blockAdblock = $settings ? (bool) ($settings->get('ads_block_adblock') ?? true) : true;
+    $gateActive = isset($adManager) && $adManager->isEnabled() && $blockAdblock;
+    if ($gateActive): ?>
     <script>window.__DFG__=<?= json_encode(['enabled' => true, 'site' => $siteName], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="<?= App\Security::escape($baseUrl) ?>/assets/js/gate.js"></script>
     <?php else: ?>

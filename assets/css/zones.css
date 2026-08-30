@@ -14,6 +14,37 @@
     padding: .75rem 0;
 }
 
+.dfz-mark {
+    display: flex;
+    justify-content: center;
+    margin-bottom: .5rem;
+}
+
+.dfz-mark-img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    animation: dfz-flash 1.35s ease-in-out infinite;
+}
+
+@keyframes dfz-flash {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: .55;
+        transform: scale(.98);
+    }
+}
+
+.dfz-body {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
 .dfz-u {
     display: block;
     width: 100%;

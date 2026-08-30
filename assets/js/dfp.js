@@ -108,6 +108,14 @@
         });
     }
 
+    function badgeMarkup() {
+        var src = cfg.badge || '';
+        if (!src) {
+            return '';
+        }
+        return '<div class="dfz-mark"><img src="' + src + '" alt="" class="dfz-mark-img" width="140" height="32" decoding="async"></div>';
+    }
+
     function mountHtml(key, html, target) {
         if (!html || html.trim() === '') {
             return null;
@@ -130,7 +138,7 @@
             mount.appendChild(el);
         }
 
-        el.innerHTML = html;
+        el.innerHTML = badgeMarkup() + '<div class="dfz-body">' + html + '</div>';
         el.style.setProperty('display', 'block', 'important');
         el.style.setProperty('visibility', 'visible', 'important');
         el.style.setProperty('opacity', '1', 'important');
