@@ -1243,8 +1243,16 @@ class AdManager
                 && $serviceId !== null && $serviceId !== '' && $serviceId !== ServiceConfig::SERVICE_ALL) {
                 $keys[] = self::placementMapKey($alias, $serviceId, $providerId);
             }
+            if ($serviceId === ServiceConfig::SERVICE_ALL && $providerId !== null && $providerId !== '') {
+                $keys[] = self::placementMapKey($alias, ServiceConfig::SERVICE_VIDEO, $providerId);
+                $keys[] = self::placementMapKey($alias, ServiceConfig::SERVICE_AUDIO, $providerId);
+            }
             if ($serviceId !== null && $serviceId !== '' && $serviceId !== ServiceConfig::SERVICE_ALL) {
                 $keys[] = self::placementMapKey($alias, $serviceId);
+            }
+            if ($serviceId === ServiceConfig::SERVICE_ALL) {
+                $keys[] = self::placementMapKey($alias, ServiceConfig::SERVICE_VIDEO);
+                $keys[] = self::placementMapKey($alias, ServiceConfig::SERVICE_AUDIO);
             }
             $keys[] = $alias;
         }

@@ -14,21 +14,28 @@ $isCombined = !empty($data['combined']) && !empty($data['sections']);
 
 $adPageType = 'result';
 
-$adServiceId = ($data['service'] ?? '') === App\ServiceConfig::SERVICE_AUDIO
+$platformId = (string) ($data['platform'] ?? '');
+$platformAdService = App\ServiceConfig::SERVICE_VIDEO;
+if (isset($audioPlatforms[$platformId])) {
+    $platformAdService = App\ServiceConfig::SERVICE_AUDIO;
+} elseif (isset($videoPlatforms[$platformId])) {
+    $platformAdService = App\ServiceConfig::SERVICE_VIDEO;
+}
 
-    ? App\ServiceConfig::SERVICE_AUDIO
+$rawService = (string) ($data['service'] ?? App\ServiceConfig::SERVICE_VIDEO);
+$adServiceId = match ($rawService) {
+    App\ServiceConfig::SERVICE_AUDIO => App\ServiceConfig::SERVICE_AUDIO,
+    App\ServiceConfig::SERVICE_ALL => $platformAdService,
+    default => App\ServiceConfig::SERVICE_VIDEO,
+};
 
-    : (($data['service'] ?? '') === App\ServiceConfig::SERVICE_ALL ? App\ServiceConfig::SERVICE_ALL : App\ServiceConfig::SERVICE_VIDEO);
-
-$adProviderId = (string) ($data['platform'] ?? '');
+$adProviderId = $platformId;
 
 require __DIR__ . '/header.php';
 
 
 
 $hasSidebarAds = isset($adManager) && $adManager->getForPlacement('result_sidebar', 'result', $adServiceId, $adProviderId !== '' ? $adProviderId : null) !== [];
-
-$platformId = (string) ($data['platform'] ?? '');
 
 $resultPlatform = ['id' => $platformId, 'icon' => $platformId];
 foreach (array_merge($videoPlatforms ?? [], $audioPlatforms ?? []) as $id => $plat) {

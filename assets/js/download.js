@@ -4,7 +4,8 @@
     var cfg = window.__DOWNLOAD_CONFIG__ || {};
     var countdownSec = Math.max(0, parseInt(cfg.countdown, 10) || 0);
     var modalHtml = cfg.modalHtml || '';
-    var useGate = cfg.useGate !== false && countdownSec > 0;
+    var hasModalAds = modalHtml.trim() !== '';
+    var useGate = cfg.useGate !== false && (hasModalAds || countdownSec > 0);
 
     function startDownload(url, target) {
         if (target === '_blank') {
@@ -14,28 +15,64 @@
         }
     }
 
+    function activateModalScripts(container) {
+        if (!container || typeof window.__dfzActivateScripts === 'function') {
+            if (container && typeof window.__dfzActivateScripts === 'function') {
+                window.__dfzActivateScripts(container);
+            }
+            return;
+        }
+
+        container.querySelectorAll('script').forEach(function (oldScript) {
+            if (oldScript.getAttribute('data-dfp-active') === '1') {
+                return;
+            }
+            var script = document.createElement('script');
+            Array.prototype.forEach.call(oldScript.attributes, function (attr) {
+                script.setAttribute(attr.name, attr.value);
+            });
+            script.text = oldScript.textContent;
+            script.setAttribute('data-dfp-active', '1');
+            oldScript.parentNode.replaceChild(script, oldScript);
+        });
+    }
+
     function openDownloadModal(url, target) {
+        if (!hasModalAds && countdownSec <= 0) {
+            startDownload(url, target);
+            return;
+        }
+
         var overlay = document.createElement('div');
         overlay.className = 'cz-modal-overlay';
-        var hasSide = modalHtml.trim() !== '';
         overlay.innerHTML =
             '<div class="cz-modal-wrap">' +
-            '<div class="cz-modal' + (hasSide ? ' has-side-slot' : '') + '">' +
+            '<div class="cz-modal' + (hasModalAds ? ' has-side-slot' : '') + '">' +
             '<div class="cz-modal-main">' +
             '<h3>Your download is ready</h3>' +
             '<p>Please wait a moment while we prepare your download.</p>' +
             '<div class="cz-modal-actions">' +
-            '<button type="button" class="btn btn-primary cz-modal-continue" disabled>Continue Download</button>' +
+            '<button type="button" class="btn btn-primary cz-modal-continue"' + (countdownSec > 0 ? ' disabled' : '') + '>Continue Download</button>' +
             '<button type="button" class="btn btn-secondary cz-modal-cancel">Cancel</button>' +
             '</div>' +
-            '<p class="cz-modal-countdown">Download available in <span class="cz-countdown-num">' + countdownSec + '</span>s</p>' +
+            '<p class="cz-modal-countdown">' +
+            (countdownSec > 0
+                ? 'Download available in <span class="cz-countdown-num">' + countdownSec + '</span>s'
+                : 'Click Continue to start your download.') +
+            '</p>' +
             '</div>' +
-            (hasSide ? '<div class="cz-modal-side">' + modalHtml + '</div>' : '') +
+            (hasModalAds ? '<div class="cz-modal-side">' + modalHtml + '</div>' : '') +
             '</div>' +
             '<button type="button" class="cz-modal-close" aria-label="Close">&times;</button>' +
             '</div>';
 
         document.body.appendChild(overlay);
+
+        var side = overlay.querySelector('.cz-modal-side');
+        if (side) {
+            activateModalScripts(side);
+        }
+
         requestAnimationFrame(function () {
             overlay.classList.add('open');
         });
@@ -59,7 +96,15 @@
         }
 
         if (countdownSec <= 0) {
-            triggerDownload();
+            if (continueBtn) {
+                continueBtn.addEventListener('click', triggerDownload);
+            }
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', closeModal);
+            }
+            if (closeBtn) {
+                closeBtn.addEventListener('click', closeModal);
+            }
             return;
         }
 

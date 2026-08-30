@@ -82,10 +82,11 @@
                 $downloadModalHtml .= $adManager->renderAd($ad, 'download_modal');
             }
         }
+        $hasDownloadModalAds = trim($downloadModalHtml) !== '';
         $downloadCfg = [
             'countdown' => $dlCountdown,
             'modalHtml' => $downloadModalHtml,
-            'useGate' => $dlCountdown > 0,
+            'useGate' => $hasDownloadModalAds || $dlCountdown > 0,
         ];
     ?>
     <script>window.__DOWNLOAD_CONFIG__=<?= json_encode($downloadCfg, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>

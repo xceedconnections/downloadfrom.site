@@ -366,6 +366,8 @@
         });
     }
 
+    window.__dfzActivateScripts = activateScripts;
+
     bootAll();
 
     document.addEventListener('df:gate-ready', function () {
