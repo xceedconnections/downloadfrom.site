@@ -19,6 +19,7 @@ use App\Settings;
 use App\ServiceConfig;
 use App\Validator;
 use App\VideoService;
+use App\VisitorAnalytics;
 
 Logger::init($config);
 Security::initSession($config);
@@ -38,6 +39,7 @@ $seo = new Seo($config, $videoPlatforms, $audioPlatforms);
 $validator = new Validator($config);
 $rateLimiter = new RateLimiter($db, $config);
 $analytics = new Analytics($db, $config);
+$visitorAnalytics = new VisitorAnalytics($config, $settings);
 $detector = $providerManager->getDetector();
 $videoService = new VideoService(
     $detector,
@@ -58,7 +60,8 @@ $router = new Router(
     $videoPlatforms,
     $audioPlatforms,
     $servicesNav,
-    $adManager
+    $adManager,
+    $visitorAnalytics
 );
 
 $uri = $_SERVER['REQUEST_URI'] ?? '/';

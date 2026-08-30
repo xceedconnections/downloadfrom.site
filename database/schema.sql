@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS ads (
     popup_closable TINYINT(1) NOT NULL DEFAULT 1,
     popup_display VARCHAR(16) NOT NULL DEFAULT 'modal',
     popup_content_mode VARCHAR(16) NOT NULL DEFAULT 'html',
+    impression_count INT UNSIGNED NOT NULL DEFAULT 0,
     updated_at INT UNSIGNED NOT NULL DEFAULT 0,
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -155,6 +156,29 @@ CREATE TABLE IF NOT EXISTS analytics_platform_daily (
     platform VARCHAR(64) NOT NULL,
     request_count INT UNSIGNED NOT NULL DEFAULT 0,
     PRIMARY KEY (stat_date, platform)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS visitor_events (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    session_key VARCHAR(64) NOT NULL DEFAULT '',
+    ip_address VARCHAR(45) NOT NULL DEFAULT '',
+    country_code CHAR(2) NOT NULL DEFAULT '',
+    country_name VARCHAR(100) NOT NULL DEFAULT '',
+    page_url VARCHAR(2048) NOT NULL DEFAULT '',
+    page_path VARCHAR(512) NOT NULL DEFAULT '',
+    referrer_url VARCHAR(2048) NOT NULL DEFAULT '',
+    user_agent TEXT,
+    browser VARCHAR(64) NOT NULL DEFAULT '',
+    os_name VARCHAR(64) NOT NULL DEFAULT '',
+    device_type VARCHAR(32) NOT NULL DEFAULT 'desktop',
+    duration_seconds INT UNSIGNED NOT NULL DEFAULT 0,
+    visited_at INT UNSIGNED NOT NULL DEFAULT 0,
+    left_at INT UNSIGNED NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    KEY idx_visitor_visited_at (visited_at),
+    KEY idx_visitor_session_key (session_key),
+    KEY idx_visitor_country_code (country_code),
+    KEY idx_visitor_page_path (page_path(191))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS rate_limit_events (

@@ -35,6 +35,7 @@ final class StorageStatus
             'faq_items' => 'FAQ items',
             'admin_users' => 'Admin users',
             'analytics_daily' => 'Analytics (daily)',
+            'visitor_events' => 'Visitor analytics',
             'rate_limit_events' => 'Rate limit events',
             'download_sessions' => 'Download sessions',
         ];

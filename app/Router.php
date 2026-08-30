@@ -6,6 +6,7 @@ namespace App;
 
 use App\Repositories\FaqRepository;
 use App\Storage\DatabaseConnection;
+use App\VisitorAnalytics;
 
 class Router
 {
@@ -20,6 +21,8 @@ class Router
     /** @var array<int, array<string, mixed>> */
     private array $servicesNav;
     private AdManager $adManager;
+    private VisitorAnalytics $visitorAnalytics;
+    private ?int $visitorVisitId = null;
 
     public function __construct(
         array $config,
@@ -31,7 +34,8 @@ class Router
         array $videoPlatforms,
         array $audioPlatforms,
         array $servicesNav,
-        AdManager $adManager
+        AdManager $adManager,
+        VisitorAnalytics $visitorAnalytics
     ) {
         $this->config = $config;
         $this->seo = $seo;
@@ -43,6 +47,7 @@ class Router
         $this->audioPlatforms = $audioPlatforms;
         $this->servicesNav = $servicesNav;
         $this->adManager = $adManager;
+        $this->visitorAnalytics = $visitorAnalytics;
     }
 
     private function templateVars(): array
@@ -57,7 +62,13 @@ class Router
             'servicesNav' => $this->servicesNav,
             'adManager' => $this->adManager,
             'baseUrl' => $this->seo->baseUrl(),
+            'visitorVisitId' => $this->visitorVisitId,
         ];
+    }
+
+    private function beginPageTracking(string $path): void
+    {
+        $this->visitorVisitId = $this->visitorAnalytics->recordPageView($path);
     }
 
     public function dispatch(string $uri, string $method): void
@@ -76,6 +87,15 @@ class Router
         if ($method === 'POST' && $path === '/process') {
             $this->handleProcess();
             return;
+        }
+
+        if ($method === 'POST' && $path === '/api/analytics/leave') {
+            $this->handleAnalyticsLeave();
+            return;
+        }
+
+        if (VisitorAnalytics::shouldTrackPath($path, $method)) {
+            $this->beginPageTracking($path);
         }
 
         match (true) {
@@ -263,6 +283,34 @@ class Router
         header('Cache-Control: no-store');
         http_response_code($deleted ? 200 : 500);
         echo $deleted ? 'ok' : 'fail';
+        exit;
+    }
+
+    private function handleAnalyticsLeave(): void
+    {
+        header('Content-Type: text/plain');
+        header('Cache-Control: no-store');
+
+        $visitId = (int) ($_POST['id'] ?? 0);
+        $duration = (int) ($_POST['duration'] ?? 0);
+
+        if ($visitId <= 0 || $duration < 0) {
+            http_response_code(400);
+            echo 'invalid';
+            exit;
+        }
+
+        $ipHash = Security::hashIp(VisitorAnalytics::clientIp() ?: '0.0.0.0');
+        $limit = $this->rateLimiter->check($ipHash, 'analytics');
+        if (!$limit['allowed']) {
+            http_response_code(429);
+            echo 'rate';
+            exit;
+        }
+
+        $ok = $this->visitorAnalytics->recordLeave($visitId, $duration);
+        http_response_code($ok ? 200 : 404);
+        echo $ok ? 'ok' : 'fail';
         exit;
     }
 

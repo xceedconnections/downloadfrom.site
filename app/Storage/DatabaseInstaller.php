@@ -38,6 +38,7 @@ final class DatabaseInstaller
 
             self::ensureColumn($pdo, 'ads', 'popup_display', "VARCHAR(16) NOT NULL DEFAULT 'modal' AFTER popup_closable");
             self::ensureColumn($pdo, 'ads', 'popup_content_mode', "VARCHAR(16) NOT NULL DEFAULT 'html' AFTER popup_display");
+            self::ensureColumn($pdo, 'ads', 'impression_count', 'INT UNSIGNED NOT NULL DEFAULT 0 AFTER popup_content_mode');
             self::ensureZoneAssignmentsMultiAd($pdo);
 
             return true;
@@ -161,6 +162,7 @@ final class DatabaseInstaller
             'faq_items',
             'admin_users',
             'analytics_daily',
+            'visitor_events',
             'rate_limit_events',
             'download_sessions',
         ];

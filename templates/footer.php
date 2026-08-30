@@ -147,6 +147,13 @@
     window.__CLEANUP_URL__ = <?= json_encode($baseUrl . '/api/cleanup/' . $resultToken) ?>;
     </script>
     <?php endif; ?>
+    <?php if (!empty($visitorVisitId)): ?>
+    <script>window.__VISITOR_ANALYTICS__=<?= json_encode([
+        'visitId' => (int) $visitorVisitId,
+        'leaveUrl' => ($baseUrl ?? '') . '/api/analytics/leave',
+    ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="<?= App\Security::escape($baseUrl) ?>/assets/js/visitor-analytics.js"></script>
+    <?php endif; ?>
     <script src="<?= App\Security::escape($baseUrl) ?>/assets/js/session-cleanup.js"></script>
     <script src="<?= App\Security::escape($baseUrl) ?>/assets/js/main.js" defer></script>
 </body>
