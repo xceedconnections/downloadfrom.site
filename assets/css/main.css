@@ -699,9 +699,13 @@ body {
     border-radius: var(--radius);
     padding: 1rem;
     min-height: 280px;
+    width: 100%;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: stretch;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 .hero-side-slot .dfz-tx,
