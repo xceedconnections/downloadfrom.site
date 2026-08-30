@@ -93,13 +93,40 @@ class YtDlpHelper
         return null;
     }
 
+    /** @param array<string, mixed> $config */
+    public static function environmentStatus(array $config): array
+    {
+        $ytdlp = self::resolvePath($config);
+        $node = self::resolveNodePath($config);
+        $disabled = array_filter(array_map('trim', explode(',', (string) ini_get('disable_functions'))));
+
+        $ytdlpVersion = null;
+        if ($ytdlp !== null) {
+            $ytdlpVersion = trim((string) self::exec(escapeshellarg($ytdlp) . ' --version 2>&1'));
+        }
+
+        $nodeVersion = null;
+        if ($node !== null) {
+            $nodeVersion = trim((string) self::exec(escapeshellarg($node) . ' --version 2>&1'));
+        }
+
+        return [
+            'ytdlp' => $ytdlp,
+            'ytdlp_version' => $ytdlpVersion,
+            'node' => $node,
+            'node_version' => $nodeVersion,
+            'proc_open' => function_exists('proc_open') && !in_array('proc_open', $disabled, true),
+            'shell_exec' => self::canShellExec(),
+        ];
+    }
+
     /**
      * @param array<string, mixed> $config
-     * @param array{player_clients?: string|null, format?: string|null} $options
+     * @param array{player_clients?: string|null, format?: string|null, remote_components?: bool|string|null} $options
      */
     public static function fetchJson(string $url, array $config = [], array $options = []): ?array
     {
-        if (array_key_exists('player_clients', $options)) {
+        if (array_key_exists('player_clients', $options) && !array_key_exists('remote_components', $options)) {
             return self::fetchJsonAttempt($url, $config, $options);
         }
 
@@ -110,35 +137,43 @@ class YtDlpHelper
             Logger::error('Node.js not found — YouTube may return 360p only. Set ytdlp.node_path in config.local.php');
         }
 
-        foreach (self::PLAYER_CLIENT_ATTEMPTS as $playerClients) {
-            $data = self::fetchJsonAttempt($url, $config, [
-                'player_clients' => $playerClients,
-                'format' => $options['format'] ?? null,
-            ]);
-            if ($data === null) {
-                continue;
-            }
-
-            if ($baseData === null) {
-                $baseData = $data;
-            }
-
-            foreach ($data['formats'] ?? [] as $format) {
-                if (!is_array($format)) {
+        $remoteModes = ['github', 'npm', false];
+        foreach ($remoteModes as $remoteMode) {
+            foreach (self::PLAYER_CLIENT_ATTEMPTS as $playerClients) {
+                $data = self::fetchJsonAttempt($url, $config, [
+                    'player_clients' => $playerClients,
+                    'format' => $options['format'] ?? null,
+                    'remote_components' => $remoteMode,
+                ]);
+                if ($data === null) {
                     continue;
                 }
 
-                $formatId = (string) ($format['format_id'] ?? '');
-                if ($formatId === '') {
-                    continue;
+                if ($baseData === null) {
+                    $baseData = $data;
                 }
 
-                if (!isset($mergedFormats[$formatId]) || self::isRicherFormat($format, $mergedFormats[$formatId])) {
-                    $mergedFormats[$formatId] = $format;
+                foreach ($data['formats'] ?? [] as $format) {
+                    if (!is_array($format)) {
+                        continue;
+                    }
+
+                    $formatId = (string) ($format['format_id'] ?? '');
+                    if ($formatId === '') {
+                        continue;
+                    }
+
+                    if (!isset($mergedFormats[$formatId]) || self::isRicherFormat($format, $mergedFormats[$formatId])) {
+                        $mergedFormats[$formatId] = $format;
+                    }
+                }
+
+                if (self::isStrongExtract(array_values($mergedFormats))) {
+                    break 2;
                 }
             }
 
-            if (self::isStrongExtract(array_values($mergedFormats))) {
+            if ($mergedFormats !== [] && self::isStrongExtract(array_values($mergedFormats))) {
                 break;
             }
         }
@@ -193,7 +228,7 @@ class YtDlpHelper
 
     /**
      * @param array<string, mixed> $config
-     * @param array{player_clients?: string|null, format?: string|null} $options
+     * @param array{player_clients?: string|null, format?: string|null, remote_components?: bool|string|null} $options
      */
     private static function fetchJsonAttempt(string $url, array $config, array $options): ?array
     {
@@ -209,12 +244,18 @@ class YtDlpHelper
             : '';
 
         $playerClients = $options['player_clients'] ?? null;
+        $remoteComponents = $options['remote_components'] ?? 'github';
 
         $cmd = escapeshellarg($ytdlpPath)
             . ' -j --no-playlist --no-warnings --no-check-certificates'
             . ' --no-cache-dir'
-            . ' --extractor-retries 3'
-            . ' --remote-components ejs:github';
+            . ' --socket-timeout 30'
+            . ' --extractor-retries 3';
+
+        if ($remoteComponents !== false && $remoteComponents !== null && $remoteComponents !== '') {
+            $remote = is_string($remoteComponents) ? $remoteComponents : 'github';
+            $cmd .= ' --remote-components ejs:' . $remote;
+        }
 
         if ($playerClients !== null && $playerClients !== '') {
             $cmd .= ' --extractor-args ' . escapeshellarg('youtube:player_client=' . $playerClients);
@@ -228,7 +269,7 @@ class YtDlpHelper
             . ' ' . escapeshellarg($url)
             . ' 2>&1';
 
-        $output = self::exec($cmd);
+        $output = self::exec($cmd, 120);
         if ($output === null || trim($output) === '') {
             Logger::error('yt-dlp empty output for ' . substr($url, 0, 80));
             return null;
@@ -262,7 +303,7 @@ class YtDlpHelper
         return is_array($data) ? $data : null;
     }
 
-    public static function exec(string $command): ?string
+    public static function exec(string $command, int $timeoutSeconds = 90): ?string
     {
         if (function_exists('proc_open')) {
             $descriptors = [
@@ -274,6 +315,8 @@ class YtDlpHelper
             $process = @proc_open($command, $descriptors, $pipes);
             if (is_resource($process)) {
                 fclose($pipes[0]);
+                stream_set_timeout($pipes[1], max(10, $timeoutSeconds));
+                stream_set_timeout($pipes[2], max(10, $timeoutSeconds));
                 $stdout = stream_get_contents($pipes[1]) ?: '';
                 $stderr = stream_get_contents($pipes[2]) ?: '';
                 fclose($pipes[1]);
@@ -297,7 +340,7 @@ class YtDlpHelper
         return null;
     }
 
-    private static function canShellExec(): bool
+    public static function canShellExec(): bool
     {
         if (!function_exists('shell_exec')) {
             return false;

@@ -18,14 +18,18 @@ class VideoService
     private Analytics $analytics;
     private DownloadSessionRepository $sessions;
     private Settings $settings;
+    /** @var array<string, mixed> */
+    private array $config;
 
+    /** @param array<string, mixed> $config */
     public function __construct(
         PlatformDetector $detector,
         Cache $cache,
         ProviderRegistry $videoRegistry,
         ProviderRegistry $audioRegistry,
         Analytics $analytics,
-        Settings $settings
+        Settings $settings,
+        array $config = []
     ) {
         $this->detector = $detector;
         $this->cache = $cache;
@@ -34,6 +38,7 @@ class VideoService
         $this->analytics = $analytics;
         $this->sessions = new DownloadSessionRepository(DatabaseConnection::get());
         $this->settings = $settings;
+        $this->config = $config !== [] ? $config : require dirname(__DIR__) . '/config/config.php';
     }
 
     public function process(string $url, string $serviceId = ServiceConfig::SERVICE_ALL): array
@@ -239,13 +244,32 @@ class VideoService
         }
 
         if ($this->isWeakYoutubeResult($platform, $data, $serviceType)) {
-            Logger::error("YouTube weak extraction for {$serviceId}: " . count($data['links'] ?? []) . ' links');
+            YtDlpProvider::clearRequestCache();
+            try {
+                $retry = $provider->fetch($normalized);
+                if ($retry['success']) {
+                    $retryData = $retry['data'];
+                    if ($serviceType === 'audio') {
+                        $retryData['links'] = $this->filterAudioLinks($retryData['links'] ?? []);
+                    }
+                    if (!$this->isWeakYoutubeResult($platform, $retryData, $serviceType)) {
+                        $data = $retryData;
+                    }
+                }
+            } catch (\Throwable $e) {
+                Logger::error("YouTube retry failed [{$platform}/{$serviceId}]: " . $e->getMessage());
+            }
+        }
+
+        if ($this->isWeakYoutubeResult($platform, $data, $serviceType)) {
+            $linkCount = count(array_filter($data['links'] ?? [], static fn(array $link): bool => !empty($link['download'])));
+            Logger::error("YouTube weak extraction for {$serviceId}: {$linkCount} links");
             $this->analytics->record($platform, false, (microtime(true) - $start) * 1000);
 
             return [
                 'success' => false,
                 'error' => 'fetch_failed',
-                'message' => 'Unable to retrieve full quality links. Run deploy.sh on the server to update yt-dlp and Node.js, then try again.',
+                'message' => $this->youtubeWeakMessage($platform, $data, $serviceType),
             ];
         }
 
@@ -309,6 +333,46 @@ class VideoService
         }
 
         return $maxHeight < 720;
+    }
+
+    /** @param array<string, mixed> $data */
+    private function youtubeWeakMessage(string $platform, array $data, string $serviceType): string
+    {
+        if ($platform !== 'youtube') {
+            return 'Unable to retrieve download links. Please try again later.';
+        }
+
+        $links = array_values(array_filter($data['links'] ?? [], static fn(array $link): bool => !empty($link['download'])));
+        $maxHeight = 0;
+        foreach ($links as $link) {
+            if ($serviceType === 'audio') {
+                continue;
+            }
+            $maxHeight = max($maxHeight, (int) preg_replace('/\D+/', '', (string) ($link['quality'] ?? '0')));
+        }
+
+        $env = YtDlpHelper::environmentStatus($this->config);
+        $parts = ['Unable to retrieve full quality links.'];
+
+        if ($env['ytdlp'] === null) {
+            $parts[] = 'yt-dlp is not installed.';
+        }
+        if ($env['node'] === null) {
+            $parts[] = 'Node.js is missing (required for YouTube HD).';
+        }
+        if (!$env['proc_open'] && !$env['shell_exec']) {
+            $parts[] = 'PHP cannot execute shell commands on this server.';
+        }
+
+        if ($serviceType === 'audio') {
+            $parts[] = 'Found ' . count($links) . ' audio link(s); need at least 2 MP3 qualities.';
+        } else {
+            $parts[] = 'Found ' . count($links) . ' video link(s), max ' . ($maxHeight > 0 ? $maxHeight . 'p' : 'unknown') . '; need 3+ qualities including 720p+.';
+        }
+
+        $parts[] = 'On the server run: cd /www/wwwroot/downloadfrom.site && bash deploy.sh — then php tools/verify-ytdlp.php';
+
+        return implode(' ', $parts);
     }
 
     /** @param array<int, array<string, mixed>> $links @return array<int, array<string, mixed>> */

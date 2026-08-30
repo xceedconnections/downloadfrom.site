@@ -47,7 +47,8 @@ $videoService = new VideoService(
     $providerManager->getVideoRegistry(),
     $providerManager->getAudioRegistry(),
     $analytics,
-    $settings
+    $settings,
+    $config
 );
 
 $router = new Router(

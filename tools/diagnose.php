@@ -51,6 +51,17 @@ try {
     }
 
     echo "\nDiagnosis complete.\n";
+
+    echo "\n--- yt-dlp / YouTube ---\n";
+    $env = App\YtDlpHelper::environmentStatus($config);
+    echo 'yt-dlp: ' . ($env['ytdlp'] ?? 'MISSING') . "\n";
+    echo 'yt-dlp version: ' . ($env['ytdlp_version'] ?? 'n/a') . "\n";
+    echo 'node: ' . ($env['node'] ?? 'MISSING') . "\n";
+    echo 'node version: ' . ($env['node_version'] ?? 'n/a') . "\n";
+    echo 'proc_open: ' . ($env['proc_open'] ? 'yes' : 'NO') . "\n";
+    echo 'shell_exec: ' . ($env['shell_exec'] ? 'yes' : 'NO') . "\n";
+
+    passthru('php ' . escapeshellarg(dirname(__DIR__) . '/tools/verify-ytdlp.php'));
 } catch (Throwable $e) {
     echo "FAIL: " . $e->getMessage() . "\n";
     echo $e->getFile() . ':' . $e->getLine() . "\n";

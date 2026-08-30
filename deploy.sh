@@ -60,9 +60,15 @@ fi
 if [ -x "$YTDLP" ]; then
     if ! php "$ROOT/tools/verify-ytdlp.php"; then
         echo "[deploy] ERROR: yt-dlp verification failed."
-        echo "[deploy] Ensure Node.js is installed (node --version) and config.local.php has ytdlp.node_path."
-        echo "[deploy] YouTube downloads will show 360p only until this is fixed."
+        echo "[deploy] Install Node.js if missing:"
+        echo "[deploy]   curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt install -y nodejs"
+        echo "[deploy] Then re-run: bash deploy.sh"
+        echo "[deploy] YouTube downloads will fail until verify-ytdlp.php passes."
+        exit 1
     fi
+else
+    echo "[deploy] ERROR: yt-dlp binary missing at $YTDLP"
+    exit 1
 fi
 
 echo "[deploy] done — code updated; admin settings remain in MySQL"
