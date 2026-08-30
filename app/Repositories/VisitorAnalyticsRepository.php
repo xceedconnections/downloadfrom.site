@@ -17,9 +17,9 @@ final class VisitorAnalyticsRepository
     {
         $stmt = $this->pdo->prepare(
             'INSERT INTO visitor_events
-            (session_key, ip_address, country_code, country_name, page_url, page_path, referrer_url,
-             user_agent, browser, os_name, device_type, duration_seconds, visited_at, left_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0)'
+            (session_key, ip_address, country_code, country_name, page_url, page_path, page_title,
+             referrer_url, referrer_source, user_agent, browser, os_name, device_type, duration_seconds, visited_at, left_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0)'
         );
         $visitedAt = (int) ($data['visited_at'] ?? time());
         $stmt->execute([
@@ -29,7 +29,9 @@ final class VisitorAnalyticsRepository
             (string) ($data['country_name'] ?? ''),
             (string) ($data['page_url'] ?? ''),
             (string) ($data['page_path'] ?? ''),
+            (string) ($data['page_title'] ?? ''),
             (string) ($data['referrer_url'] ?? ''),
+            (string) ($data['referrer_source'] ?? ''),
             (string) ($data['user_agent'] ?? ''),
             (string) ($data['browser'] ?? ''),
             (string) ($data['os_name'] ?? ''),
@@ -54,9 +56,17 @@ final class VisitorAnalyticsRepository
         return $stmt->execute([$durationSeconds, $leftAt, $id]);
     }
 
+    private function junkSql(): string
+    {
+        return " AND page_path NOT IN ('/favicon.ico', '/robots.txt', '/sitemap.xml')
+                 AND page_path NOT LIKE '/open%'
+                 AND page_path NOT LIKE '/assets/%'
+                 AND page_path NOT LIKE '%.%' ";
+    }
+
     public function countSince(int $since): int
     {
-        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM visitor_events WHERE visited_at >= ?');
+        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM visitor_events WHERE visited_at >= ?' . $this->junkSql());
         $stmt->execute([$since]);
 
         return (int) ($stmt->fetchColumn() ?: 0);
@@ -66,7 +76,8 @@ final class VisitorAnalyticsRepository
     public function listSince(int $since, int $limit, int $offset): array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT * FROM visitor_events WHERE visited_at >= ? ORDER BY visited_at DESC, id DESC LIMIT ? OFFSET ?'
+            'SELECT * FROM visitor_events WHERE visited_at >= ?' . $this->junkSql()
+            . ' ORDER BY visited_at DESC, id DESC LIMIT ? OFFSET ?'
         );
         $stmt->bindValue(1, $since, PDO::PARAM_INT);
         $stmt->bindValue(2, max(1, $limit), PDO::PARAM_INT);
@@ -87,13 +98,14 @@ final class VisitorAnalyticsRepository
                 AVG(NULLIF(duration_seconds, 0)) AS avg_duration,
                 MAX(duration_seconds) AS max_duration
              FROM visitor_events
-             WHERE visited_at >= ?'
+             WHERE visited_at >= ?' . $this->junkSql()
         );
         $stmt->execute([$since]);
         $row = $stmt->fetch() ?: [];
 
         $countries = $this->topGroupedSince($since, 'country_code', 'country_name', 8);
-        $pages = $this->topGroupedSince($since, 'page_path', 'page_path', 8);
+        $pages = $this->topGroupedSince($since, 'page_title', 'page_title', 8, " AND page_title <> '' ");
+        $referrers = $this->topGroupedSince($since, 'referrer_source', 'referrer_source', 8, " AND referrer_source <> '' ");
         $browsers = $this->topGroupedSince($since, 'browser', 'browser', 8);
 
         return [
@@ -104,14 +116,15 @@ final class VisitorAnalyticsRepository
             'max_duration' => (int) ($row['max_duration'] ?? 0),
             'top_countries' => $countries,
             'top_pages' => $pages,
+            'top_referrers' => $referrers,
             'top_browsers' => $browsers,
         ];
     }
 
     /** @return array<int, array{label: string, count: int}> */
-    private function topGroupedSince(int $since, string $keyCol, string $labelCol, int $limit): array
+    private function topGroupedSince(int $since, string $keyCol, string $labelCol, int $limit, string $extraWhere = ''): array
     {
-        $allowed = ['country_code' => 1, 'page_path' => 1, 'browser' => 1];
+        $allowed = ['country_code' => 1, 'page_path' => 1, 'page_title' => 1, 'referrer_source' => 1, 'browser' => 1];
         if (!isset($allowed[$keyCol]) || !isset($allowed[$labelCol])) {
             return [];
         }
@@ -119,12 +132,13 @@ final class VisitorAnalyticsRepository
         $sql = sprintf(
             'SELECT %s AS grp_key, %s AS grp_label, COUNT(*) AS cnt
              FROM visitor_events
-             WHERE visited_at >= ? AND %s <> \'\'
+             WHERE visited_at >= ? %s AND %s <> \'\'
              GROUP BY grp_key, grp_label
              ORDER BY cnt DESC
              LIMIT %d',
             $keyCol,
             $labelCol,
+            $this->junkSql() . $extraWhere,
             $keyCol,
             max(1, $limit)
         );
@@ -134,6 +148,7 @@ final class VisitorAnalyticsRepository
         foreach ($stmt->fetchAll() ?: [] as $row) {
             $rows[] = [
                 'label' => (string) ($row['grp_label'] ?? ''),
+                'code' => $keyCol === 'country_code' ? (string) ($row['grp_key'] ?? '') : '',
                 'count' => (int) ($row['cnt'] ?? 0),
             ];
         }

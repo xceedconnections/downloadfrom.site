@@ -23,6 +23,7 @@ class Router
     private AdManager $adManager;
     private VisitorAnalytics $visitorAnalytics;
     private ?int $visitorVisitId = null;
+    private string $requestPath = '/';
 
     public function __construct(
         array $config,
@@ -66,9 +67,9 @@ class Router
         ];
     }
 
-    private function beginPageTracking(string $path): void
+    private function trackPageView(string $pageTitle): void
     {
-        $this->visitorVisitId = $this->visitorAnalytics->recordPageView($path);
+        $this->visitorVisitId = $this->visitorAnalytics->recordPageView($this->requestPath, $pageTitle);
     }
 
     public function dispatch(string $uri, string $method): void
@@ -84,6 +85,8 @@ class Router
             $path = substr($path, strlen($basePath)) ?: '/';
         }
 
+        $this->requestPath = $path;
+
         if ($method === 'POST' && $path === '/process') {
             $this->handleProcess();
             return;
@@ -92,10 +95,6 @@ class Router
         if ($method === 'POST' && $path === '/api/analytics/leave') {
             $this->handleAnalyticsLeave();
             return;
-        }
-
-        if (VisitorAnalytics::shouldTrackPath($path, $method)) {
-            $this->beginPageTracking($path);
         }
 
         match (true) {
@@ -165,6 +164,7 @@ class Router
 
     private function renderFaq(): void
     {
+        $this->trackPageView('FAQ');
         extract($this->templateVars());
         $faq = PlatformConfig::applyDynamicFaqAnswers($this->loadFaq('home'), array_merge($this->videoPlatforms, $this->audioPlatforms));
         require dirname(__DIR__) . '/templates/faq.php';
@@ -192,6 +192,7 @@ class Router
             return;
         }
 
+        $this->trackPageView($serviceId === ServiceConfig::SERVICE_AUDIO ? 'Audio Converter' : 'Video Converter');
         extract($this->templateVars());
         $serviceMeta = $this->seo->serviceMeta($serviceId, $serviceNav);
         $servicePlatforms = $serviceNav['platforms'];
@@ -201,6 +202,7 @@ class Router
 
     private function renderHome(): void
     {
+        $this->trackPageView('Homepage');
         extract($this->templateVars());
         $meta = $this->seo->homepageMeta();
         $prefillUrl = Security::escape($_GET['url'] ?? '');
@@ -220,6 +222,9 @@ class Router
             $this->renderError('Page not found.');
             return;
         }
+
+        $platformName = (string) ($platform['name'] ?? ucfirst($slug));
+        $this->trackPageView($platformName . ' Downloader');
 
         $meta = $platform;
         $currentService = $platform['service'] ?? ServiceConfig::SERVICE_VIDEO;
@@ -405,6 +410,7 @@ class Router
             return;
         }
 
+        $this->trackPageView('Download Result');
         $resultToken = $token;
         require dirname(__DIR__) . '/templates/result.php';
     }
@@ -436,6 +442,7 @@ class Router
             return;
         }
 
+        $this->trackPageView('Blog: ' . ($articles[$slug]['h1'] ?? 'Article'));
         $article = $articles[$slug];
         $blogSlug = $slug;
         require dirname(__DIR__) . '/templates/blog.php';
@@ -443,6 +450,7 @@ class Router
 
     private function renderStatic(string $title, string $page): void
     {
+        $this->trackPageView($title);
         extract($this->templateVars());
         $pageTitle = $title;
         $pageDescription = $title;

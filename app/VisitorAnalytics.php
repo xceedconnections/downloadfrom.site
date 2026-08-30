@@ -13,14 +13,15 @@ final class VisitorAnalytics
     private VisitorAnalyticsRepository $repo;
     private bool $configEnabled;
     private Settings $settings;
-    private bool $storeIpHash;
+    private string $siteHost;
 
     public function __construct(array $config, Settings $settings)
     {
         $this->repo = new VisitorAnalyticsRepository(DatabaseConnection::get());
         $this->configEnabled = (bool) ($config['analytics']['enabled'] ?? true);
         $this->settings = $settings;
-        $this->storeIpHash = (bool) ($config['analytics']['store_ip_hash'] ?? false);
+        $host = (string) (parse_url((string) ($config['app']['url'] ?? ''), PHP_URL_HOST) ?? '');
+        $this->siteHost = strtolower(preg_replace('/:\d+$/', '', $host));
     }
 
     public function isEnabled(): bool
@@ -28,9 +29,9 @@ final class VisitorAnalytics
         return $this->configEnabled && (bool) $this->settings->get('analytics_enabled', true);
     }
 
-    public function recordPageView(string $path): ?int
+    public function recordPageView(string $path, string $pageTitle = ''): ?int
     {
-        if (!$this->isEnabled()) {
+        if (!$this->isEnabled() || !self::isTrackablePath($path)) {
             return null;
         }
 
@@ -45,22 +46,27 @@ final class VisitorAnalytics
         }
 
         $parsed = UserAgentParser::parse($ua);
-        $geo = GeoLookup::fromRequest();
+        $geo = GeoLookup::fromRequest($ip);
         $referrer = trim((string) ($_SERVER['HTTP_REFERER'] ?? ''));
+        $refInfo = VisitorAnalyticsDisplay::referrerInfo($referrer, $this->siteHost);
         $pageUrl = $this->currentPageUrl($path);
         $sessionKey = $this->sessionKey();
 
-        $storedIp = $this->storeIpHash ? Security::hashIp($ip) : $ip;
+        if ($pageTitle === '') {
+            $pageTitle = VisitorAnalyticsDisplay::pageLabel($path);
+        }
 
         try {
             return $this->repo->insert([
                 'session_key' => $sessionKey,
-                'ip_address' => mb_substr($storedIp, 0, 45),
+                'ip_address' => mb_substr($ip, 0, 45),
                 'country_code' => $geo['code'],
                 'country_name' => $geo['name'],
                 'page_url' => mb_substr($pageUrl, 0, 2048),
                 'page_path' => mb_substr($path, 0, 512),
+                'page_title' => mb_substr($pageTitle, 0, 255),
                 'referrer_url' => mb_substr($referrer, 0, 2048),
+                'referrer_source' => mb_substr($refInfo['source'], 0, 128),
                 'user_agent' => $ua,
                 'browser' => $parsed['browser'],
                 'os_name' => $parsed['os_name'],
@@ -130,7 +136,13 @@ final class VisitorAnalytics
         }
 
         foreach ($candidates as $ip) {
-            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6)) {
+            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+                return $ip;
+            }
+        }
+
+        foreach ($candidates as $ip) {
+            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
                 return $ip;
             }
         }
@@ -140,18 +152,33 @@ final class VisitorAnalytics
 
     public static function shouldTrackPath(string $path, string $method): bool
     {
-        if (strtoupper($method) !== 'GET') {
-            return false;
+        return strtoupper($method) === 'GET' && self::isTrackablePath($path);
+    }
+
+    public static function isTrackablePath(string $path): bool
+    {
+        $path = '/' . trim($path, '/');
+        if ($path === '//') {
+            $path = '/';
         }
 
         if ($path === '/process'
             || str_starts_with($path, '/download/')
             || str_starts_with($path, '/api/')
             || str_starts_with($path, '/assets/')
+            || str_starts_with($path, '/admin')
+            || str_starts_with($path, '/open')
             || $path === '/x/r'
             || $path === '/assets/c/w'
             || $path === '/assets/c/d'
+            || $path === '/favicon.ico'
+            || $path === '/robots.txt'
+            || $path === '/sitemap.xml'
         ) {
+            return false;
+        }
+
+        if (preg_match('/\.(ico|png|jpe?g|gif|webp|svg|css|js|woff2?|ttf|map|txt|xml)$/i', $path)) {
             return false;
         }
 

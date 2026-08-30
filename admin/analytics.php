@@ -7,6 +7,7 @@ $auth->requireAuth();
 
 use App\Security;
 use App\VisitorAnalytics;
+use App\VisitorAnalyticsDisplay;
 
 $visitorAnalytics = new VisitorAnalytics($config, $settings);
 $message = '';
@@ -15,6 +16,7 @@ $error = '';
 $days = max(1, min(90, (int) ($_GET['days'] ?? 7)));
 $page = max(1, (int) ($_GET['page'] ?? 1));
 $perPage = 50;
+$siteHost = (string) (parse_url($config['app']['url'] ?? '', PHP_URL_HOST) ?? '');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Security::validateCsrfToken($_POST[$config['security']['csrf_token_name']] ?? null, $config)) {
@@ -48,7 +50,7 @@ $formatWhen = static function (int $timestamp): string {
         return '—';
     }
 
-    return gmdate('Y-m-d H:i:s', $timestamp) . ' UTC';
+    return gmdate('M j, Y g:i A', $timestamp) . ' UTC';
 };
 
 $pageTitle = 'Visitor Analytics';
@@ -57,9 +59,8 @@ require __DIR__ . '/layout/header.php';
 
 <h1>Visitor Analytics</h1>
 <p class="admin-note">
-    Tracks every public page visit: IP, country, URL, referrer, browser, OS, device, and time on page.
-    Country is detected from Cloudflare (<code>CF-IPCountry</code>) when available.
-    Enable or disable tracking in <a href="settings.php">Site Settings → Enable Analytics</a>.
+    Real visitor IPs, traffic sources, countries, and time on page. Clear junk data anytime below.
+    Tracking can be toggled in <a href="settings.php">Site Settings → Enable Analytics</a>.
 </p>
 
 <?php if ($message): ?><p class="admin-success"><?= Security::escape($message) ?></p><?php endif; ?>
@@ -94,80 +95,91 @@ require __DIR__ . '/layout/header.php';
     </div>
 </div>
 
-<div class="admin-grid-3" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin:1.5rem 0">
-    <div>
+<div class="va-summary-grid">
+    <div class="va-summary-card">
         <h2>Top countries</h2>
         <?php if (($summary['top_countries'] ?? []) === []): ?>
         <p class="admin-note">No data yet.</p>
         <?php else: ?>
-        <table class="admin-table">
-            <thead><tr><th>Country</th><th>Views</th></tr></thead>
-            <tbody>
-            <?php foreach ($summary['top_countries'] as $row): ?>
-            <tr>
-                <td><?= Security::escape($row['label'] !== '' ? $row['label'] : 'Unknown') ?></td>
-                <td><?= number_format((int) $row['count']) ?></td>
-            </tr>
+        <ul class="va-rank-list">
+            <?php foreach ($summary['top_countries'] as $row):
+                $code = strtoupper((string) ($row['code'] ?? ''));
+                $flag = VisitorAnalyticsDisplay::countryFlag($code);
+                $name = (string) ($row['label'] ?? '');
+                if ($name === '' && $code !== '') {
+                    $name = \App\GeoLookup::countryName($code);
+                }
+            ?>
+            <li>
+                <span class="va-rank-label"><?= $flag !== '' ? $flag . ' ' : '🌍 ' ?><?= Security::escape($name !== '' ? $name : 'Unknown') ?></span>
+                <span class="va-rank-count"><?= number_format((int) $row['count']) ?></span>
+            </li>
             <?php endforeach; ?>
-            </tbody>
-        </table>
+        </ul>
         <?php endif; ?>
     </div>
-    <div>
+    <div class="va-summary-card">
         <h2>Top pages</h2>
         <?php if (($summary['top_pages'] ?? []) === []): ?>
         <p class="admin-note">No data yet.</p>
         <?php else: ?>
-        <table class="admin-table">
-            <thead><tr><th>Path</th><th>Views</th></tr></thead>
-            <tbody>
+        <ul class="va-rank-list">
             <?php foreach ($summary['top_pages'] as $row): ?>
-            <tr>
-                <td><code><?= Security::escape($row['label']) ?></code></td>
-                <td><?= number_format((int) $row['count']) ?></td>
-            </tr>
+            <li>
+                <span class="va-rank-label"><?= Security::escape((string) ($row['label'] ?? '')) ?></span>
+                <span class="va-rank-count"><?= number_format((int) $row['count']) ?></span>
+            </li>
             <?php endforeach; ?>
-            </tbody>
-        </table>
+        </ul>
         <?php endif; ?>
     </div>
-    <div>
+    <div class="va-summary-card">
+        <h2>Traffic sources</h2>
+        <?php if (($summary['top_referrers'] ?? []) === []): ?>
+        <p class="admin-note">No data yet.</p>
+        <?php else: ?>
+        <ul class="va-rank-list">
+            <?php foreach ($summary['top_referrers'] as $row): ?>
+            <li>
+                <span class="va-rank-label"><span class="<?= Security::escape(VisitorAnalyticsDisplay::referrerBadgeClass((string) ($row['label'] ?? ''))) ?>"><?= Security::escape((string) ($row['label'] ?? '')) ?></span></span>
+                <span class="va-rank-count"><?= number_format((int) $row['count']) ?></span>
+            </li>
+            <?php endforeach; ?>
+        </ul>
+        <?php endif; ?>
+    </div>
+    <div class="va-summary-card">
         <h2>Top browsers</h2>
         <?php if (($summary['top_browsers'] ?? []) === []): ?>
         <p class="admin-note">No data yet.</p>
         <?php else: ?>
-        <table class="admin-table">
-            <thead><tr><th>Browser</th><th>Views</th></tr></thead>
-            <tbody>
+        <ul class="va-rank-list">
             <?php foreach ($summary['top_browsers'] as $row): ?>
-            <tr>
-                <td><?= Security::escape($row['label']) ?></td>
-                <td><?= number_format((int) $row['count']) ?></td>
-            </tr>
+            <li>
+                <span class="va-rank-label"><?= Security::escape((string) ($row['label'] ?? '')) ?></span>
+                <span class="va-rank-count"><?= number_format((int) $row['count']) ?></span>
+            </li>
             <?php endforeach; ?>
-            </tbody>
-        </table>
+        </ul>
         <?php endif; ?>
     </div>
 </div>
 
 <h2>Visit log</h2>
-<p class="admin-note"><?= number_format($list['total']) ?> record(s) in the last <?= (int) $days ?> day(s).</p>
+<p class="admin-note"><?= number_format($list['total']) ?> real page visit(s) in the last <?= (int) $days ?> day(s). Bot scans and favicon requests are excluded.</p>
 
 <?php if ($list['rows'] === []): ?>
 <p>No visitor activity recorded yet. Open the public site in a browser to generate data.</p>
 <?php else: ?>
-<div class="admin-table-wrap" style="overflow-x:auto">
-<table class="admin-table">
+<div class="va-log-wrap">
+<table class="admin-table va-log-table">
     <thead>
         <tr>
             <th>When</th>
-            <th>IP</th>
+            <th>Visitor</th>
             <th>Country</th>
-            <th>Page</th>
-            <th>Referrer</th>
-            <th>Browser</th>
-            <th>OS</th>
+            <th>Page visited</th>
+            <th>How they arrived</th>
             <th>Device</th>
             <th>Duration</th>
         </tr>
@@ -175,36 +187,65 @@ require __DIR__ . '/layout/header.php';
     <tbody>
     <?php foreach ($list['rows'] as $row): ?>
     <?php
-        $countryLabel = (string) ($row['country_name'] ?? '');
-        if ($countryLabel === '' && ($row['country_code'] ?? '') !== '') {
-            $countryLabel = (string) $row['country_code'];
+        $countryCode = strtoupper((string) ($row['country_code'] ?? ''));
+        $countryName = (string) ($row['country_name'] ?? '');
+        if ($countryName === '' && $countryCode !== '') {
+            $countryName = \App\GeoLookup::countryName($countryCode);
         }
+        $flag = VisitorAnalyticsDisplay::countryFlag($countryCode);
         $referrer = (string) ($row['referrer_url'] ?? '');
+        $refSource = (string) ($row['referrer_source'] ?? '');
+        if ($refSource === '' && $referrer !== '') {
+            $refSource = VisitorAnalyticsDisplay::referrerInfo($referrer, $siteHost)['source'];
+        } elseif ($refSource === '') {
+            $refSource = 'Direct';
+        }
+        $refInfo = VisitorAnalyticsDisplay::referrerInfo($referrer, $siteHost);
         $pagePath = (string) ($row['page_path'] ?? '');
         $pageUrl = (string) ($row['page_url'] ?? '');
+        $pageTitle = (string) ($row['page_title'] ?? '');
+        if ($pageTitle === '') {
+            $pageTitle = VisitorAnalyticsDisplay::pageLabel($pagePath, $videoPlatforms, $audioPlatforms);
+        }
+        $ip = VisitorAnalyticsDisplay::formatIp((string) ($row['ip_address'] ?? ''));
+        $browser = (string) ($row['browser'] ?? '—');
+        $os = (string) ($row['os_name'] ?? '—');
+        $device = (string) ($row['device_type'] ?? 'desktop');
     ?>
     <tr>
-        <td><?= Security::escape($formatWhen((int) ($row['visited_at'] ?? 0))) ?></td>
-        <td><code><?= Security::escape((string) ($row['ip_address'] ?? '')) ?></code></td>
-        <td><?= Security::escape($countryLabel !== '' ? $countryLabel : '—') ?></td>
-        <td>
+        <td class="va-when"><?= Security::escape($formatWhen((int) ($row['visited_at'] ?? 0))) ?></td>
+        <td class="va-ip"><code><?= Security::escape($ip) ?></code></td>
+        <td class="va-country">
+            <?php if ($countryName !== '' || $flag !== ''): ?>
+            <span class="va-country-pill"><?= $flag !== '' ? $flag . ' ' : '🌍 ' ?><?= Security::escape($countryName !== '' ? $countryName : 'Unknown') ?></span>
+            <?php else: ?>
+            <span class="va-country-pill va-muted">Unknown</span>
+            <?php endif; ?>
+        </td>
+        <td class="va-page">
+            <strong><?= Security::escape($pageTitle) ?></strong>
             <?php if ($pageUrl !== ''): ?>
-            <a href="<?= Security::escape($pageUrl) ?>" target="_blank" rel="noopener noreferrer"><code><?= Security::escape($pagePath) ?></code></a>
-            <?php else: ?>
-            <code><?= Security::escape($pagePath) ?></code>
+            <a class="va-page-url" href="<?= Security::escape($pageUrl) ?>" target="_blank" rel="noopener noreferrer"><?= Security::escape($pageUrl) ?></a>
+            <?php elseif ($pagePath !== ''): ?>
+            <span class="va-page-url"><?= Security::escape($pagePath) ?></span>
             <?php endif; ?>
         </td>
-        <td style="max-width:220px;word-break:break-all">
-            <?php if ($referrer !== ''): ?>
-            <a href="<?= Security::escape($referrer) ?>" target="_blank" rel="noopener noreferrer"><?= Security::escape($referrer) ?></a>
-            <?php else: ?>
-            —
+        <td class="va-referrer">
+            <span class="<?= Security::escape(VisitorAnalyticsDisplay::referrerBadgeClass($refSource)) ?>"><?= Security::escape($refSource) ?></span>
+            <?php if ($refInfo['external'] && $referrer !== ''): ?>
+            <a class="va-ref-url" href="<?= Security::escape($referrer) ?>" target="_blank" rel="noopener noreferrer" title="<?= Security::escape($referrer) ?>"><?= Security::escape(parse_url($referrer, PHP_URL_HOST) ?: $referrer) ?></a>
+            <?php elseif ($refSource === 'Direct'): ?>
+            <span class="va-ref-url">No referrer — direct visit</span>
+            <?php elseif ($refInfo['detail'] !== '' && !$refInfo['external']): ?>
+            <span class="va-ref-url"><?= Security::escape($refInfo['detail']) ?></span>
             <?php endif; ?>
         </td>
-        <td><?= Security::escape((string) ($row['browser'] ?? '—')) ?></td>
-        <td><?= Security::escape((string) ($row['os_name'] ?? '—')) ?></td>
-        <td><?= Security::escape((string) ($row['device_type'] ?? '—')) ?></td>
-        <td><?= Security::escape($formatDuration((int) ($row['duration_seconds'] ?? 0))) ?></td>
+        <td class="va-device">
+            <span class="va-device-type"><?= Security::escape(ucfirst($device)) ?></span>
+            <span class="va-device-meta"><?= Security::escape($browser) ?></span>
+            <span class="va-device-meta"><?= Security::escape($os) ?></span>
+        </td>
+        <td class="va-duration"><?= Security::escape($formatDuration((int) ($row['duration_seconds'] ?? 0))) ?></td>
     </tr>
     <?php endforeach; ?>
     </tbody>
@@ -224,7 +265,7 @@ require __DIR__ . '/layout/header.php';
 <?php endif; ?>
 <?php endif; ?>
 
-<hr style="margin:2rem 0">
+<hr class="va-divider">
 
 <form method="POST" onsubmit="return confirm('Delete ALL visitor analytics records? This cannot be undone.')">
     <?= Security::csrfField($config) ?>

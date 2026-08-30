@@ -8,7 +8,7 @@ namespace App;
 final class GeoLookup
 {
     /** @return array{code: string, name: string} */
-    public static function fromRequest(): array
+    public static function fromRequest(?string $ip = null): array
     {
         $code = '';
         foreach (['HTTP_CF_IPCOUNTRY', 'HTTP_X_COUNTRY_CODE', 'HTTP_X_APPENGINE_COUNTRY'] as $header) {
@@ -19,10 +19,56 @@ final class GeoLookup
             }
         }
 
+        if ($code === '' && $ip !== null && $ip !== '') {
+            $fromIp = self::fromIp($ip);
+            $code = $fromIp['code'];
+        }
+
         return [
             'code' => $code,
             'name' => self::countryName($code),
         ];
+    }
+
+    /** @return array{code: string, name: string} */
+    public static function fromIp(string $ip): array
+    {
+        $ip = trim($ip);
+        if ($ip === '' || Security::isPrivateIp($ip)) {
+            return ['code' => '', 'name' => ''];
+        }
+
+        static $cache = [];
+        if (isset($cache[$ip])) {
+            return $cache[$ip];
+        }
+
+        $cache[$ip] = ['code' => '', 'name' => ''];
+
+        $url = 'http://ip-api.com/json/' . rawurlencode($ip) . '?fields=status,country,countryCode';
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => 2,
+                'ignore_errors' => true,
+                'header' => "User-Agent: VideoLink-Analytics/1.0\r\n",
+            ],
+        ]);
+
+        $body = @file_get_contents($url, false, $context);
+        if (is_string($body) && $body !== '') {
+            $data = json_decode($body, true);
+            if (is_array($data) && ($data['status'] ?? '') === 'success') {
+                $code = strtoupper(trim((string) ($data['countryCode'] ?? '')));
+                if (preg_match('/^[A-Z]{2}$/', $code)) {
+                    $cache[$ip] = [
+                        'code' => $code,
+                        'name' => (string) ($data['country'] ?? self::countryName($code)),
+                    ];
+                }
+            }
+        }
+
+        return $cache[$ip];
     }
 
     public static function countryName(string $code): string

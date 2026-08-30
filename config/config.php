@@ -55,7 +55,7 @@ $config = [
 
     'analytics' => [
         'enabled' => true,
-        'store_ip_hash' => true,
+        'store_ip_hash' => false,
     ],
 
     'api_keys' => [
