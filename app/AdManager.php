@@ -688,6 +688,13 @@ class AdManager
             }
         }
 
+        if ($placement === 'download_link_opener') {
+            $mapped = $this->collectOpenerLinksFromMap($pageType, $serviceId, $providerId);
+            if ($mapped !== []) {
+                return $mapped;
+            }
+        }
+
         $urls = [];
         foreach ($this->allAds() as $ad) {
             if (empty($ad['enabled'])) {
@@ -715,6 +722,84 @@ class AdManager
         }
 
         return $urls;
+    }
+
+    /** @return string[] */
+    private function collectOpenerLinksFromMap(string $pageType, ?string $serviceId, ?string $providerId): array
+    {
+        $bestScore = -1;
+        $bestUrls = [];
+
+        foreach ($this->getPlacementMap() as $mapKey => $adIds) {
+            $parsed = self::parsePlacementMapKey($mapKey);
+            if ($parsed['placement'] !== 'download_link_opener') {
+                continue;
+            }
+            $score = $this->scoreOpenerPlacementKey($parsed, $pageType, $serviceId, $providerId);
+            if ($score < 0) {
+                continue;
+            }
+            $urls = $this->extractLinksFromMapKey($mapKey);
+            if ($urls === []) {
+                continue;
+            }
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $bestUrls = $urls;
+            }
+        }
+
+        if ($bestUrls !== []) {
+            return $bestUrls;
+        }
+
+        foreach ($this->getPlacementMap() as $mapKey => $adIds) {
+            if (!str_contains($mapKey, 'download_link_opener')) {
+                continue;
+            }
+            $urls = $this->extractLinksFromMapKey($mapKey);
+            if ($urls !== []) {
+                return $urls;
+            }
+        }
+
+        return [];
+    }
+
+    /** @param array{placement: string, page_scope: ?string, service_id: ?string, provider_id: ?string} $parsed */
+    private function scoreOpenerPlacementKey(array $parsed, string $pageType, ?string $serviceId, ?string $providerId): int
+    {
+        $score = 0;
+        $expectedScope = self::pageScopeFromPageType($pageType, $providerId);
+
+        if ($parsed['page_scope'] !== null && $expectedScope !== null && $parsed['page_scope'] !== $expectedScope) {
+            return -1;
+        }
+        if ($parsed['page_scope'] === $expectedScope && $expectedScope !== null) {
+            $score += 20;
+        } elseif ($parsed['page_scope'] === null) {
+            $score += 5;
+        }
+
+        if ($parsed['service_id'] !== null && $serviceId !== null && $parsed['service_id'] !== $serviceId) {
+            return -1;
+        }
+        if ($parsed['service_id'] === $serviceId && $serviceId !== null) {
+            $score += 20;
+        } elseif ($parsed['service_id'] === null) {
+            $score += 5;
+        }
+
+        if ($parsed['provider_id'] !== null && $providerId !== null && $parsed['provider_id'] !== $providerId) {
+            return -1;
+        }
+        if ($parsed['provider_id'] === $providerId && $providerId !== null) {
+            $score += 30;
+        } elseif ($parsed['provider_id'] === null) {
+            $score += 5;
+        }
+
+        return $score;
     }
 
     /** @return string[] */

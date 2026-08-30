@@ -219,6 +219,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $contentHeight = max(1, (int) ($_POST['ad_height'] ?? 90));
         }
 
+        if ($type !== 'popup') {
+            $sharedLink = trim($_POST['link_url'] ?? '');
+            if ($sharedLink !== '') {
+                $contentLink = $sharedLink;
+            } elseif (($contentLink ?? '') === '') {
+                $contentLink = (string) ($existingContent['link_url'] ?? '');
+            }
+        }
+
         $existingPopup = is_array($existingAd['popup'] ?? null) ? $existingAd['popup'] : [
             'delay_seconds' => 3,
             'show_once_per_session' => false,
@@ -366,16 +375,20 @@ $mediaPreview = static function (string $path): string {
             </label>
         </fieldset>
 
+        <fieldset class="admin-fieldset ad-fields-opener-url" id="ad-opener-url-fieldset">
+            <legend>Download link opener</legend>
+            <label>Opener URL (opens in new tab when visitor clicks Download)
+                <input type="url" name="link_url" value="<?= Security::escape($c['link_url'] ?? '') ?>" placeholder="https://example.com/offer">
+            </label>
+            <p class="admin-field-hint">Set this URL, save the ad, then assign it to the <strong>Opener</strong> zone on a <strong>result page</strong> in <a href="ads.php?tab=map">Placement Map</a>. HTML/script code above is <em>not</em> used for Opener — only this URL.</p>
+        </fieldset>
+
         <fieldset class="admin-fieldset ad-fields-html ad-fields-type">
             <legend>HTML / Script code</legend>
             <label>Paste full ad code (scripts, ins tags, iframes)
                 <textarea name="content_html" id="ad-content-html" rows="12" class="ad-code-textarea" placeholder="Paste Google AdSense or any ad network HTML/JavaScript here"><?= Security::escape($c['html'] ?? ($c['network_code'] ?? '')) ?></textarea>
                 <span class="admin-field-hint">Rendered exactly as HTML on the site — use this for AdSense, Media.net, etc.</span>
             </label>
-            <label>Click URL (for Download link opener zone)
-                <input type="url" name="link_url" value="<?= Security::escape($c['link_url'] ?? '') ?>" placeholder="https://example.com/offer">
-            </label>
-            <p class="admin-field-hint">Required when this ad is assigned to <strong>Download link opener</strong> — not used for normal HTML display zones.</p>
         </fieldset>
 
         <fieldset class="admin-fieldset ad-fields-banner ad-fields-type">
@@ -390,7 +403,6 @@ $mediaPreview = static function (string $path): string {
                 <input type="file" name="banner_upload" accept="image/png,image/jpeg,image/gif,image/webp">
             </label>
             <label>Or image URL <input type="text" name="image_url" value="<?= Security::escape($c['image_url'] ?? '') ?>"></label>
-            <label>Click URL <input type="url" name="link_url" value="<?= Security::escape($c['link_url'] ?? '') ?>"></label>
             <label>Alt text <input type="text" name="image_alt" value="<?= Security::escape($c['alt'] ?? 'Advertisement') ?>"></label>
         </fieldset>
 
@@ -400,8 +412,6 @@ $mediaPreview = static function (string $path): string {
             <label>Body
                 <textarea name="content_text_body" class="wysiwyg" id="ad-content-text" rows="8"><?= Security::escape($c['html'] ?? ($c['text'] ?? '')) ?></textarea>
             </label>
-            <label>Click URL <input type="url" name="link_url" value="<?= Security::escape($c['link_url'] ?? '') ?>" placeholder="https://example.com/offer"></label>
-            <p class="admin-field-hint">Required for <strong>Download link opener</strong> zones — opens in a new tab when the visitor clicks Download.</p>
         </fieldset>
 
         <fieldset class="admin-fieldset ad-fields-video ad-fields-type">
@@ -545,6 +555,7 @@ $mediaPreview = static function (string $path): string {
     var htmlField = document.getElementById('ad-content-html');
     var textField = document.getElementById('ad-content-text');
     var adForm = document.getElementById('ad-form');
+    var openerUrlFieldset = document.getElementById('ad-opener-url-fieldset');
 
     function setContainerFieldsDisabled(container, disabled) {
         if (!container) {
@@ -575,8 +586,12 @@ $mediaPreview = static function (string $path): string {
             if (textField && window.AdminWysiwyg) {
                 AdminWysiwyg.initElement(textField);
             }
-        } else if (textField && window.AdminWysiwyg) {
+        } else         if (textField && window.AdminWysiwyg) {
             AdminWysiwyg.removeIn(textField.closest('fieldset') || document);
+        }
+        if (openerUrlFieldset) {
+            openerUrlFieldset.style.display = t === 'popup' ? 'none' : 'block';
+            setContainerFieldsDisabled(openerUrlFieldset, t === 'popup');
         }
         if (t === 'popup') {
             document.querySelectorAll('.ad-fields-popup').forEach(function (el) {
@@ -656,12 +671,13 @@ $mediaPreview = static function (string $path): string {
     <?php else: ?>
     <table class="admin-table">
         <thead>
-            <tr><th>Impressions</th><th>Name</th><th>Type</th><th>Used in zones</th><th>Status</th><th>Actions</th></tr>
+            <tr><th>Impressions</th><th>Name</th><th>Type</th><th>Opener URL</th><th>Used in zones</th><th>Status</th><th>Actions</th></tr>
         </thead>
         <tbody>
         <?php foreach ($adManager->allAds() as $ad):
             $aid = (string) ($ad['id'] ?? '');
             $usedIn = [];
+            $inOpenerZone = false;
             foreach ($adManager->getPlacementMap() as $place => $mappedIds) {
                 if (!is_array($mappedIds)) {
                     $mappedIds = [$mappedIds];
@@ -670,7 +686,13 @@ $mediaPreview = static function (string $path): string {
                     continue;
                 }
                 $parsed = AdManager::parsePlacementMapKey($place);
+                if (($parsed['placement'] ?? '') === 'download_link_opener') {
+                    $inOpenerZone = true;
+                }
                 $label = AdManager::PLACEMENTS[$parsed['placement']] ?? $parsed['placement'];
+                if ($parsed['page_scope'] !== null) {
+                    $label = ucfirst((string) $parsed['page_scope']) . ': ' . $label;
+                }
                 if ($parsed['provider_id'] !== null) {
                     $label .= ' (' . $parsed['provider_id'] . ')';
                 } elseif ($parsed['service_id'] !== null) {
@@ -678,11 +700,13 @@ $mediaPreview = static function (string $path): string {
                 }
                 $usedIn[] = $label;
             }
+            $linkUrl = trim((string) ($ad['content']['link_url'] ?? ''));
         ?>
         <tr>
             <td><?= number_format((int) ($ad['impression_count'] ?? 0)) ?></td>
             <td><?= Security::escape($ad['name'] ?? '') ?></td>
             <td><?= Security::escape(AdManager::AD_TYPES[$ad['type'] ?? ''] ?? $ad['type'] ?? '') ?></td>
+            <td><?php if ($linkUrl !== ''): ?><a href="<?= Security::escape($linkUrl) ?>" target="_blank" rel="noopener noreferrer"><?= Security::escape(parse_url($linkUrl, PHP_URL_HOST) ?: $linkUrl) ?></a><?php elseif ($inOpenerZone): ?><span class="admin-error-inline">Missing URL</span><?php else: ?>—<?php endif; ?></td>
             <td><?= Security::escape($usedIn !== [] ? implode(', ', $usedIn) : '— assign in Placement Map') ?></td>
             <td><?= !empty($ad['enabled']) ? 'Active' : 'Disabled' ?></td>
             <td>
