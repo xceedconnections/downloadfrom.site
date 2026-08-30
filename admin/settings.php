@@ -150,14 +150,14 @@ require __DIR__ . '/layout/header.php';
     <div class="admin-tab-panel"<?= $tab !== 'codes' ? ' hidden' : '' ?>>
         <fieldset class="admin-fieldset">
             <legend>Custom Codes</legend>
-            <p class="admin-note">Pop/vignette tags load in <strong>&lt;head&gt;</strong> on every page (head + body fields combined). Desktop Chrome/Firefox also need popups allowed for this site. Keep pop tags here only — do not duplicate them in Ad zones.</p>
-            <label>Head code <span class="hint">(inside &lt;head&gt;)</span>
+            <p class="admin-note">Put pop/vignette script tags in <strong>Body scripts</strong> below. Vignette loads first; popunder tags wait until after the first click so desktop shows the same modal as mobile. Keep pop tags here only — do not duplicate them in Ad zones.</p>
+            <label>Head code <span class="hint">(inside &lt;head&gt; — analytics, meta tags)</span>
                 <textarea name="custom_codes_head" rows="8" class="code-area" spellcheck="false" placeholder="<script async src=&quot;https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-...&quot; crossorigin=&quot;anonymous&quot;></script>"><?= Security::escape($currentSettings['custom_codes']['head'] ?? '') ?></textarea>
             </label>
-            <label>Additional body scripts <span class="hint">(also injected into &lt;head&gt; — not duplicated at bottom)</span>
+            <label>Body scripts <span class="hint">(top of &lt;body&gt; — pop/vignette tags)</span>
                 <textarea name="custom_codes_body_end" rows="6" class="code-area" spellcheck="false" placeholder="Pop/vignette / popunder script tags"><?= Security::escape($currentSettings['custom_codes']['body_end'] ?? '') ?></textarea>
             </label>
-            <p class="admin-field-hint">Vignette ads fire on first click. Popunder tabs need browser popups allowed (Chrome → site settings → Pop-ups → Allow). Firefox Enhanced Tracking Protection may block some networks on desktop.</p>
+            <p class="admin-field-hint">Vignette modal shows on first click. Popunder tabs load after that click — allow popups for this site in Chrome/Firefox. Firefox Enhanced Tracking Protection may still block some ad domains on desktop.</p>
         </fieldset>
     </div>
 

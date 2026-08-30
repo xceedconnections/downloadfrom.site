@@ -49,7 +49,6 @@ $siteName = $settings ? (string) ($settings->get('site_name') ?: $config['app'][
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <?php App\CustomCodes::renderHead($settings ?? null, $baseUrl, (bool) ($config['ads']['relay_scripts'] ?? false)); ?>
-
     <title><?= App\Security::escape($pageTitle) ?></title>
 
     <meta name="description" content="<?= App\Security::escape($pageDescription) ?>">
@@ -95,6 +94,7 @@ $siteName = $settings ? (string) ($settings->get('site_name') ?: $config['app'][
 </head>
 
 <body>
+    <?php App\CustomCodes::renderBodyStart($settings ?? null, $baseUrl, (bool) ($config['ads']['relay_scripts'] ?? false)); ?>
 
     <?php
     $blockAdblock = $settings ? (bool) ($settings->get('ads_block_adblock') ?? false) : false;
