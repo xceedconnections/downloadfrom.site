@@ -28,21 +28,44 @@
         if (!container) {
             return;
         }
+        var useRelay = cfg.relayScripts !== false;
         container.querySelectorAll('script').forEach(function (oldScript) {
+            if (oldScript.getAttribute('data-dfp-active') === '1') {
+                return;
+            }
             var script = document.createElement('script');
             Array.prototype.forEach.call(oldScript.attributes, function (attr) {
                 if (attr.name === 'src' && attr.value.indexOf('https://') === 0) {
-                    script.setAttribute('src', relaySrc(attr.value));
+                    script.setAttribute('src', useRelay ? relaySrc(attr.value) : attr.value);
                     return;
                 }
                 script.setAttribute(attr.name, attr.value);
             });
             if (!script.src && oldScript.src) {
-                script.src = relaySrc(oldScript.src);
+                script.src = useRelay ? relaySrc(oldScript.src) : oldScript.src;
             }
             script.text = oldScript.textContent;
+            script.setAttribute('data-dfp-active', '1');
             oldScript.parentNode.replaceChild(script, oldScript);
         });
+    }
+
+    function getSlotBody(el) {
+        return el.querySelector('.dfz-body') || el;
+    }
+
+    function slotHasContent(body) {
+        if (!body) {
+            return false;
+        }
+        if (body.getAttribute('data-dfp-mounted') === '1') {
+            return true;
+        }
+        if (body.querySelector('.dfz-u, .dfz-raw, iframe, ins')) {
+            return body.innerHTML.trim() !== '';
+        }
+
+        return false;
     }
 
     function markShown(item) {
@@ -143,11 +166,7 @@
         return wrap;
     }
 
-    function mountHtml(key, html, target) {
-        if (!html || html.trim() === '') {
-            return null;
-        }
-
+    function mountHtml(key, html, target, forceRemount) {
         var el = null;
         if (target) {
             el = target.querySelector ? target.querySelector('.dfz[data-dfp="' + key + '"]') : null;
@@ -160,6 +179,9 @@
         }
 
         if (!el) {
+            if (!html || html.trim() === '') {
+                return null;
+            }
             var owned = cfg.owned || {};
             var mountSelector = (owned.mounts || {})[key];
             if (!mountSelector) {
@@ -176,18 +198,29 @@
 
         ensureBadgeOutside(el, key);
 
-        var body = el.querySelector('.dfz-body');
-        if (body) {
-            body.innerHTML = html;
-        } else {
-            el.innerHTML = '<div class="dfz-body">' + html + '</div>';
+        var body = getSlotBody(el);
+        if (!forceRemount && slotHasContent(body)) {
+            body.setAttribute('data-dfp-mounted', '1');
+            activateScripts(body);
+            el.style.setProperty('display', 'block', 'important');
+            el.style.setProperty('visibility', 'visible', 'important');
+            el.style.setProperty('opacity', '1', 'important');
+            el.style.setProperty('filter', 'none', 'important');
+            return el;
         }
+
+        if (!html || html.trim() === '') {
+            return null;
+        }
+
+        body.innerHTML = html;
+        body.setAttribute('data-dfp-mounted', '1');
 
         el.style.setProperty('display', 'block', 'important');
         el.style.setProperty('visibility', 'visible', 'important');
         el.style.setProperty('opacity', '1', 'important');
         el.style.setProperty('filter', 'none', 'important');
-        activateScripts(body || el);
+        activateScripts(body);
         return el;
     }
 
@@ -336,14 +369,12 @@
     bootAll();
 
     document.addEventListener('df:gate-ready', function () {
-        mountOwnedSlots().then(function () {
-            mountGatePromo();
-        });
+        mountGatePromo();
     });
 
     document.addEventListener('df:gate-cleared', function () {
-        mountOwnedSlots().then(function () {
+        if (!window.__DF_GATE_BLOCKED__) {
             startPopupQueue();
-        });
+        }
     });
 })();

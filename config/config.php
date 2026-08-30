@@ -75,8 +75,8 @@ $config = [
     ],
 
     'ads' => [
-        // When false, third-party ad scripts load directly (more compatible, easier for ad blockers to target).
-        'relay_scripts' => true,
+        // When false, third-party ad scripts load directly (recommended for custom HTML/script ads).
+        'relay_scripts' => false,
     ],
 
     'headers' => [

@@ -828,6 +828,7 @@ class AdManager
             'gate' => $this->isEnabled(),
             'badge' => $this->promoBadgeUrl(),
             'relay' => rtrim($this->baseUrl, '/') . AdScriptRelay::relayPath() . '?u=',
+            'relayScripts' => $this->relayScripts,
             'slotBase' => rtrim($this->baseUrl, '/') . '/assets/c/d',
             'pageType' => $pageType ?? 'all',
             'serviceId' => $serviceId,
