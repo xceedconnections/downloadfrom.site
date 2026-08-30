@@ -56,8 +56,8 @@ if (count($video) < 3) {
     exit(1);
 }
 
-if (count($audio) < 1) {
-    fwrite(STDERR, "FAIL: expected at least one MP3 link.\n");
+if (count($audio) < 3) {
+    fwrite(STDERR, "FAIL: expected multiple MP3 quality links, got " . count($audio) . ".\n");
     exit(1);
 }
 

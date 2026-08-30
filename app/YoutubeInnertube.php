@@ -202,16 +202,13 @@ class YoutubeInnertube
                 continue;
             }
 
-            if (str_contains($mime, 'webm') || str_contains($mime, 'opus')) {
-                continue;
-            }
-
             $abr = self::audioBitrate($format);
             if ($abr <= 0) {
                 continue;
             }
 
-            $key = (string) $abr;
+            $codec = str_contains($mime, 'webm') || str_contains($mime, 'opus') ? 'opus' : 'aac';
+            $key = $abr . ':' . $codec;
             if (!isset($bestByBitrate[$key]) || self::audioBitrate($bestByBitrate[$key]) < $abr) {
                 $bestByBitrate[$key] = $format + ['_url' => $mediaUrl];
             }
@@ -221,19 +218,27 @@ class YoutubeInnertube
             return [];
         }
 
-        uksort($bestByBitrate, static fn(string $a, string $b): int => (int) $b <=> (int) $a);
+        uksort($bestByBitrate, static function (string $a, string $b): int {
+            $abrA = (int) explode(':', $a, 2)[0];
+            $abrB = (int) explode(':', $b, 2)[0];
+
+            return $abrB <=> $abrA;
+        });
 
         $links = [];
         foreach ($bestByBitrate as $key => $format) {
-            $kbps = max(1, (int) $key);
+            $kbps = max(1, (int) explode(':', $key, 2)[0]);
+            $mime = (string) ($format['mimeType'] ?? '');
+            $isOpus = str_contains($mime, 'webm') || str_contains($mime, 'opus');
+            $codecLabel = $isOpus ? ' Opus' : ' AAC';
             $links[] = [
                 'type' => 'download',
-                'label' => "MP3 {$kbps} kbps AAC",
+                'label' => "MP3 {$kbps} kbps{$codecLabel}",
                 'url' => (string) $format['_url'],
                 'quality' => "{$kbps}k",
                 'download' => true,
                 'ext' => 'mp3',
-                'source_ext' => 'm4a',
+                'source_ext' => $isOpus ? 'webm' : 'm4a',
                 'combined' => false,
             ];
         }

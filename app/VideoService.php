@@ -9,7 +9,7 @@ use App\Storage\DatabaseConnection;
 
 class VideoService
 {
-    private const CACHE_VERSION = 'v4';
+    private const CACHE_VERSION = 'v5';
 
     private PlatformDetector $detector;
     private Cache $cache;

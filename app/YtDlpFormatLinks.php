@@ -81,7 +81,7 @@ final class YtDlpFormatLinks
             }
 
             $sourceExt = strtolower((string) ($format['ext'] ?? ''));
-            if (!self::isMp3CompatibleAudioExt($sourceExt)) {
+            if (!self::isAudioOnlyExt($sourceExt)) {
                 continue;
             }
 
@@ -90,7 +90,7 @@ final class YtDlpFormatLinks
                 continue;
             }
 
-            $key = (string) $abr;
+            $key = $abr . ':' . $sourceExt;
             if (!isset($candidates[$key]) || self::isBetterAudioFormat($format, $candidates[$key])) {
                 $candidates[$key] = $format;
             }
@@ -103,11 +103,17 @@ final class YtDlpFormatLinks
         uksort($candidates, static fn(string $a, string $b): int => (int) $b <=> (int) $a);
 
         $links = [];
-        foreach ($candidates as $abr => $format) {
+        foreach ($candidates as $key => $format) {
+            $abr = max(1, (int) explode(':', (string) $key, 2)[0]);
             $sourceExt = strtolower((string) ($format['ext'] ?? 'm4a'));
             $filesize = (int) ($format['filesize'] ?? $format['filesize_approx'] ?? 0);
             $sizeLabel = $filesize > 0 ? ' (' . self::formatBytes($filesize) . ')' : '';
-            $codecLabel = $sourceExt === 'mp3' ? '' : ' AAC';
+            $codecLabel = match ($sourceExt) {
+                'mp3' => '',
+                'webm', 'opus' => ' Opus',
+                'ogg' => ' Vorbis',
+                default => ' AAC',
+            };
 
             $links[] = [
                 'type' => 'download',
@@ -135,9 +141,15 @@ final class YtDlpFormatLinks
             return $abr;
         }
 
-        $bitrate = (int) ($format['bitrate'] ?? $format['filesize'] ?? $format['averageBitrate'] ?? 0);
+        $bitrate = (int) ($format['bitrate'] ?? $format['averageBitrate'] ?? 0);
         if ($bitrate > 10000) {
             return (int) round($bitrate / 1000);
+        }
+
+        $filesize = (int) ($format['filesize'] ?? $format['filesize_approx'] ?? 0);
+        $duration = (float) ($format['duration'] ?? 0);
+        if ($filesize > 0 && $duration > 0) {
+            return max(1, (int) round(($filesize * 8) / ($duration * 1000)));
         }
 
         return 0;
@@ -161,9 +173,9 @@ final class YtDlpFormatLinks
         ];
     }
 
-    private static function isMp3CompatibleAudioExt(string $ext): bool
+    private static function isAudioOnlyExt(string $ext): bool
     {
-        return in_array($ext, ['m4a', 'mp4', 'mp3', 'aac'], true);
+        return in_array($ext, ['m4a', 'mp4', 'mp3', 'aac', 'webm', 'opus', 'ogg'], true);
     }
 
     /** @param array<string, mixed> $format */
@@ -213,9 +225,12 @@ final class YtDlpFormatLinks
     private static function isBetterAudioFormat(array $new, array $current): bool
     {
         $rank = static fn(string $ext): int => match ($ext) {
-            'mp3' => 3,
-            'm4a' => 2,
-            'aac' => 2,
+            'mp3' => 4,
+            'm4a' => 3,
+            'aac' => 3,
+            'webm' => 2,
+            'opus' => 2,
+            'ogg' => 2,
             'mp4' => 1,
             default => 0,
         };
