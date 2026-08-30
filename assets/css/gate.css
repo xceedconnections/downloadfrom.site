@@ -4,11 +4,20 @@ html.df-gated {
 
 html.df-gated .site-main,
 html.df-gated .site-header,
-html.df-gated .site-footer,
-html.df-gated .dfz-bar {
+html.df-gated .site-footer {
     pointer-events: none;
     user-select: none;
     filter: blur(3px);
+}
+
+html.df-gated .dfz,
+html.df-gated .dfz-bar,
+html.df-gated .hero-side-slot,
+html.df-gated .result-side-slot,
+html.df-gated .df-gate-promo {
+    pointer-events: auto;
+    user-select: auto;
+    filter: none !important;
 }
 
 .df-gate {

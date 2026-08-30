@@ -69,6 +69,7 @@
         if (gateEl) {
             gateEl.hidden = !blocked;
         }
+        document.dispatchEvent(new CustomEvent('df:gate-ready', { detail: { blocked: blocked } }));
         if (!blocked) {
             document.dispatchEvent(new CustomEvent('df:gate-cleared'));
         }

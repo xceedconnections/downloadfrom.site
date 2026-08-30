@@ -482,15 +482,28 @@ class AdManager
         return $this->getForPlacement($placement, $pageType, $serviceId, $providerId) !== [];
     }
 
+    public function promoBadgeUrl(): string
+    {
+        return rtrim($this->baseUrl, '/') . '/assets/img/advertisement-flashing.gif';
+    }
+
+    public function renderPromoBadge(): string
+    {
+        return '<div class="dfz-mark"><img src="' . Security::escape($this->promoBadgeUrl()) . '" alt="" class="dfz-mark-img" width="140" height="32" decoding="async"></div>';
+    }
+
     public function renderZone(string $placement, string $pageType = 'all', ?string $serviceId = null, ?string $providerId = null): string
     {
-        if ($this->getForPlacement($placement, $pageType, $serviceId, $providerId) === []) {
+        $content = $this->renderOwnedSlotContent($placement, $pageType, $serviceId, $providerId);
+        if ($content === '') {
             return '';
         }
 
         $key = self::placementDomKey($placement);
 
-        return '<div class="dfz" data-dfp="' . Security::escape($key) . '"></div>';
+        return '<div class="dfz" data-dfp="' . Security::escape($key) . '">'
+            . $this->renderPromoBadge()
+            . '<div class="dfz-body">' . $content . '</div></div>';
     }
 
     public static function placementFromDomKey(string $key): ?string
@@ -717,7 +730,7 @@ class AdManager
         return [
             'enabled' => $this->isEnabled(),
             'gate' => $this->isEnabled(),
-            'badge' => rtrim($this->baseUrl, '/') . '/assets/img/dfp-badge.svg',
+            'badge' => $this->promoBadgeUrl(),
             'relay' => rtrim($this->baseUrl, '/') . AdScriptRelay::relayPath() . '?u=',
             'slotBase' => rtrim($this->baseUrl, '/') . '/assets/c/d',
             'pageType' => $pageType ?? 'all',

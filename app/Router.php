@@ -281,11 +281,7 @@ class Router
         $providerId = trim((string) ($_GET['provider'] ?? ''));
         $providerId = $providerId !== '' ? $providerId : null;
 
-        $html = $this->adManager->renderOwnedSlotContent($placement, $pageType, $serviceId, $providerId);
-        if ($html !== '') {
-            $key = AdManager::placementDomKey($placement);
-            $html = '<div class="dfz" data-dfp="' . Security::escape($key) . '">' . $html . '</div>';
-        }
+        $html = $this->adManager->renderZone($placement, $pageType, $serviceId, $providerId);
 
         header('Content-Type: application/json; charset=utf-8');
         header('Cache-Control: private, max-age=300');

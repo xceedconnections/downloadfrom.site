@@ -33,7 +33,7 @@ $renderZonePicker = static function (
     bool $popupZone = false
 ) use ($placementMap, $allAds, $config): void {
     $mapKey = AdManager::placementMapKey($placementKey, $serviceId, $providerId);
-    $badgeUrl = rtrim((string) ($config['app']['url'] ?? ''), '/') . '/assets/img/dfp-badge.svg';
+    $badgeUrl = rtrim((string) ($config['app']['url'] ?? ''), '/') . '/assets/img/advertisement-flashing.gif';
     $plabel = AdManager::PLACEMENTS[$placementKey] ?? $title;
     if ($providerId !== null) {
         $plabel .= ' (' . $providerId . ')';

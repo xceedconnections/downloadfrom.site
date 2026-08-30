@@ -100,12 +100,11 @@
         var owned = cfg.owned || {};
         var inline = (owned.slots || {})[key] || '';
 
-        return fetchSlotHtml(key).then(function (remote) {
-            if (remote && remote.trim() !== '') {
-                return remote;
-            }
-            return inline;
-        });
+        if (inline.trim() !== '') {
+            return Promise.resolve(inline);
+        }
+
+        return fetchSlotHtml(key);
     }
 
     function badgeMarkup() {
@@ -138,11 +137,18 @@
             mount.appendChild(el);
         }
 
-        el.innerHTML = badgeMarkup() + '<div class="dfz-body">' + html + '</div>';
+        var body = el.querySelector('.dfz-body');
+        if (body) {
+            body.innerHTML = html;
+        } else {
+            el.innerHTML = badgeMarkup() + '<div class="dfz-body">' + html + '</div>';
+        }
+
         el.style.setProperty('display', 'block', 'important');
         el.style.setProperty('visibility', 'visible', 'important');
         el.style.setProperty('opacity', '1', 'important');
-        activateScripts(el);
+        el.style.setProperty('filter', 'none', 'important');
+        activateScripts(body || el);
         return el;
     }
 
@@ -152,6 +158,9 @@
         var keys = Object.keys(slots);
 
         if (keys.length === 0) {
+            document.querySelectorAll('.dfz[data-dfp]').forEach(function (el) {
+                activateScripts(el);
+            });
             return Promise.resolve();
         }
 
@@ -175,9 +184,10 @@
             return Promise.resolve();
         }
 
-        var key = keys.indexOf('hdr') >= 0 ? 'hdr' : keys[0];
+        var key = keys.indexOf('hhs') >= 0 ? 'hhs' : (keys.indexOf('hdr') >= 0 ? 'hdr' : keys[0]);
         return resolveSlotHtml(key).then(function (html) {
-            mountHtml(key, html, promo);
+            promo.innerHTML = badgeMarkup() + '<div class="dfz-body">' + html + '</div>';
+            activateScripts(promo);
         });
     }
 
@@ -255,10 +265,6 @@
     }
 
     function startPopupQueue() {
-        if (window.__DF_GATE_BLOCKED__) {
-            return;
-        }
-
         var queue = popups.filter(function (item) {
             return !wasShown(item);
         });
@@ -278,18 +284,26 @@
         }
     }
 
-    function boot() {
+    function bootAll() {
         mountOwnedSlots().then(function () {
-            startPopupQueue();
+            mountGatePromo();
+            if (!window.__DF_GATE_BLOCKED__) {
+                startPopupQueue();
+            }
         });
     }
 
-    if (window.__DF_GATE_BLOCKED__) {
-        mountGatePromo();
-        document.addEventListener('df:gate-cleared', function () {
-            boot();
-        }, { once: true });
-    } else {
-        boot();
-    }
+    bootAll();
+
+    document.addEventListener('df:gate-ready', function () {
+        mountOwnedSlots().then(function () {
+            mountGatePromo();
+        });
+    });
+
+    document.addEventListener('df:gate-cleared', function () {
+        mountOwnedSlots().then(function () {
+            startPopupQueue();
+        });
+    });
 })();

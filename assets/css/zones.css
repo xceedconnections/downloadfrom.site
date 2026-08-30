@@ -24,18 +24,6 @@
     display: block;
     max-width: 100%;
     height: auto;
-    animation: dfz-flash 1.35s ease-in-out infinite;
-}
-
-@keyframes dfz-flash {
-    0%, 100% {
-        opacity: 1;
-        transform: scale(1);
-    }
-    50% {
-        opacity: .55;
-        transform: scale(.98);
-    }
 }
 
 .dfz-body {
