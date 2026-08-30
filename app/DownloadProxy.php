@@ -110,22 +110,6 @@ class DownloadProxy
 
 
 
-        $title = preg_replace('/[^\w\s\-().]/u', '', $data['title'] ?? 'video');
-
-        $title = trim(preg_replace('/\s+/', '_', $title)) ?: 'video';
-
-        $isAudio = ($link['service_type'] ?? '') === 'audio'
-            || (($data['service'] ?? '') === ServiceConfig::SERVICE_AUDIO && empty($link['service_type']));
-        $sourceExt = strtolower((string) ($link['source_ext'] ?? ''));
-        $ext = strtolower((string) ($link['ext'] ?? ($isAudio ? 'mp3' : 'mp4')));
-        if ($isAudio && $ext === '' && $sourceExt !== '') {
-            $ext = $sourceExt;
-        }
-
-        $filename = substr($title, 0, 80) . '.' . $ext;
-
-
-
         $referer = match ($data['platform'] ?? '') {
 
             'youtube' => 'https://www.youtube.com/',
@@ -152,9 +136,11 @@ class DownloadProxy
 
         header('X-Robots-Tag: noindex, nofollow');
 
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Disposition: ' . DownloadFilename::contentDisposition($data, $link));
 
-        header('Content-Type: ' . $this->mimeType($ext));
+        header('Content-Type: ' . $this->mimeType(
+            strtolower(pathinfo(DownloadFilename::build($data, $link), PATHINFO_EXTENSION) ?: 'mp4')
+        ));
         header('Cache-Control: no-store');
 
         header('Accept-Ranges: bytes');

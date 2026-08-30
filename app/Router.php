@@ -222,12 +222,9 @@ class Router
 
         $platform = (string) ($data['platform'] ?? '');
         $link = $data['links'][$index] ?? [];
-        $serviceType = (string) ($link['service_type'] ?? (
-            ($data['service'] ?? '') === ServiceConfig::SERVICE_AUDIO ? 'audio' : 'video'
-        ));
-        if (!PlatformConfig::isProxyEnabled($this->settings, $platform, $this->config, $serviceType)) {
-            http_response_code(410);
-            echo 'Direct downloads are enabled for this platform. Use the download buttons on the result page.';
+        if ($link === []) {
+            http_response_code(404);
+            echo 'Download link expired or not found.';
             return;
         }
 

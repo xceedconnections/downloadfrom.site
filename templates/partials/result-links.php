@@ -7,16 +7,11 @@
 
 $downloadLinks = array_values(array_filter($allLinks, static fn(array $l): bool => !empty($l['download'])));
 $otherLinks = array_values(array_filter($allLinks, static fn(array $l): bool => empty($l['download'])));
-$useProxy = isset($settings) && App\PlatformConfig::isProxyEnabled($settings, $platformId, $config, $sectionServiceType);
 ?>
 <?php if (!empty($downloadLinks)): ?>
 <div class="links-table">
     <h2><?= App\Security::escape($sectionLabel) ?></h2>
-    <p class="download-hint"><?php if ($useProxy): ?>
-        Select a quality below to download through this site:
-    <?php else: ?>
-        Direct download links — files come from the platform CDN, not this server:
-    <?php endif; ?></p>
+    <p class="download-hint">Files download with the video title as the filename (quality is included in the name).</p>
         <?php foreach ($downloadLinks as $idx => $link): ?>
     <?php
         $originalIndex = $idx;
@@ -27,8 +22,8 @@ $useProxy = isset($settings) && App\PlatformConfig::isProxyEnabled($settings, $p
                 break;
             }
         }
-        if ($useProxy) {
-            $downloadUrl = $baseUrl . '/download/' . ($resultToken ?? '') . '/' . $originalIndex;
+        if (!empty($resultToken)) {
+            $downloadUrl = $baseUrl . '/download/' . $resultToken . '/' . $originalIndex;
             $downloadTarget = '';
         } else {
             $downloadUrl = $link['url'] ?? '';
