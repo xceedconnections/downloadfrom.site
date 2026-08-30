@@ -10,15 +10,23 @@
 .dfz-mark {
     display: flex;
     justify-content: center;
-    margin: 0 0 .5rem;
+    margin: 0 0 .35rem;
+    padding: 0;
     text-align: center;
+    line-height: 0;
+    background: none;
 }
 
 .dfz-mark-img {
     display: block;
     width: auto;
     height: auto;
-    max-width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    vertical-align: top;
     animation: dfz-mark-flash 1.1s ease-in-out infinite;
 }
 

@@ -484,7 +484,13 @@ class AdManager
 
     public function promoBadgeUrl(): string
     {
-        return rtrim($this->baseUrl, '/') . '/assets/img/advertisement-label.png';
+        $file = dirname(__DIR__) . '/assets/img/advertisement-label.png';
+        $url = rtrim($this->baseUrl, '/') . '/assets/img/advertisement-label.png';
+        if (is_file($file)) {
+            $url .= '?v=' . (string) filemtime($file);
+        }
+
+        return $url;
     }
 
     public function renderPromoBadge(): string

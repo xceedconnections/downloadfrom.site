@@ -333,7 +333,7 @@ class Router
         }
 
         header('Content-Type: image/png');
-        header('Cache-Control: public, max-age=2592000');
+        header('Cache-Control: public, max-age=86400');
         header('Content-Length: ' . (string) filesize($file));
         readfile($file);
         exit;

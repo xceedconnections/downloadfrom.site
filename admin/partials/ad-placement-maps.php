@@ -34,6 +34,10 @@ $renderZonePicker = static function (
 ) use ($placementMap, $allAds, $config): void {
     $mapKey = AdManager::placementMapKey($placementKey, $serviceId, $providerId);
     $badgeUrl = rtrim((string) ($config['app']['url'] ?? ''), '/') . '/assets/img/advertisement-label.png';
+    $badgeFile = dirname(__DIR__, 2) . '/assets/img/advertisement-label.png';
+    if (is_file($badgeFile)) {
+        $badgeUrl .= '?v=' . (string) filemtime($badgeFile);
+    }
     $plabel = AdManager::PLACEMENTS[$placementKey] ?? $title;
     if ($providerId !== null) {
         $plabel .= ' (' . $providerId . ')';
