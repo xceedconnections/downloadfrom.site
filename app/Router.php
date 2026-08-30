@@ -86,6 +86,7 @@ class Router
             $path === '/contact' => $this->renderStatic('Contact', 'contact'),
             $path === '/assets/c/w' => $this->handleScriptRelay(),
             $path === '/assets/c/d' => $this->handleOwnedSlotDelivery(),
+            $path === '/assets/img/advertisement-flashing.gif' => $this->servePromoBadgeGif(),
             $path === '/x/r' => $this->handleScriptRelay(),
             $path === '/' . ServiceConfig::PAGE_FAQ => $this->renderFaq(),
             $path === '/' . ServiceConfig::PAGE_VIDEO => $this->renderService(ServiceConfig::SERVICE_VIDEO),

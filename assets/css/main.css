@@ -693,7 +693,11 @@ body {
     min-width: 0;
 }
 
-.hero-side-slot .dfz {
+.hero-side-slot .dfz-wrap {
+    width: 100%;
+}
+
+.hero-side-slot .dfz-wrap .dfz {
     background: var(--color-bg);
     border: 1px dashed var(--color-border);
     border-radius: var(--radius);

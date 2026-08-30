@@ -115,12 +115,50 @@
         return '<div class="dfz-mark"><img src="' + src + '" alt="" class="dfz-mark-img" width="140" height="32" decoding="async"></div>';
     }
 
+    function createWrap(key) {
+        var wrap = document.createElement('div');
+        wrap.className = 'dfz-wrap';
+        wrap.setAttribute('data-dfp-wrap', key);
+        wrap.innerHTML = badgeMarkup()
+            + '<div class="dfz" data-dfp="' + key + '"><div class="dfz-body"></div></div>';
+        return wrap;
+    }
+
+    function ensureBadgeOutside(el, key) {
+        var wrap = el.closest('.dfz-wrap');
+        if (!wrap) {
+            wrap = document.createElement('div');
+            wrap.className = 'dfz-wrap';
+            wrap.setAttribute('data-dfp-wrap', key);
+            el.parentNode.insertBefore(wrap, el);
+            wrap.appendChild(el);
+        }
+        var markInside = el.querySelector('.dfz-mark');
+        if (markInside) {
+            wrap.insertBefore(markInside, el);
+        }
+        if (!wrap.querySelector('.dfz-mark')) {
+            wrap.insertAdjacentHTML('afterbegin', badgeMarkup());
+        }
+        return wrap;
+    }
+
     function mountHtml(key, html, target) {
         if (!html || html.trim() === '') {
             return null;
         }
 
-        var el = target || document.querySelector(slotQuery(key));
+        var el = null;
+        if (target) {
+            el = target.querySelector ? target.querySelector('.dfz[data-dfp="' + key + '"]') : null;
+            if (!el && target.classList && target.classList.contains('dfz')) {
+                el = target;
+            }
+        }
+        if (!el) {
+            el = document.querySelector(slotQuery(key));
+        }
+
         if (!el) {
             var owned = cfg.owned || {};
             var mountSelector = (owned.mounts || {})[key];
@@ -131,17 +169,18 @@
             if (!mount) {
                 return null;
             }
-            el = document.createElement('div');
-            el.className = 'dfz';
-            el.setAttribute('data-dfp', key);
-            mount.appendChild(el);
+            var wrap = createWrap(key);
+            mount.appendChild(wrap);
+            el = wrap.querySelector('.dfz');
         }
+
+        ensureBadgeOutside(el, key);
 
         var body = el.querySelector('.dfz-body');
         if (body) {
             body.innerHTML = html;
         } else {
-            el.innerHTML = badgeMarkup() + '<div class="dfz-body">' + html + '</div>';
+            el.innerHTML = '<div class="dfz-body">' + html + '</div>';
         }
 
         el.style.setProperty('display', 'block', 'important');
@@ -186,7 +225,8 @@
 
         var key = keys.indexOf('hhs') >= 0 ? 'hhs' : (keys.indexOf('hdr') >= 0 ? 'hdr' : keys[0]);
         return resolveSlotHtml(key).then(function (html) {
-            promo.innerHTML = badgeMarkup() + '<div class="dfz-body">' + html + '</div>';
+            promo.innerHTML = badgeMarkup()
+                + '<div class="dfz"><div class="dfz-body">' + html + '</div></div>';
             activateScripts(promo);
         });
     }

@@ -10,6 +10,7 @@ html.df-gated .site-footer {
     filter: blur(3px);
 }
 
+html.df-gated .dfz-wrap,
 html.df-gated .dfz,
 html.df-gated .dfz-bar,
 html.df-gated .hero-side-slot,

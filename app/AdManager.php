@@ -501,9 +501,10 @@ class AdManager
 
         $key = self::placementDomKey($placement);
 
-        return '<div class="dfz" data-dfp="' . Security::escape($key) . '">'
+        return '<div class="dfz-wrap" data-dfp-wrap="' . Security::escape($key) . '">'
             . $this->renderPromoBadge()
-            . '<div class="dfz-body">' . $content . '</div></div>';
+            . '<div class="dfz" data-dfp="' . Security::escape($key) . '">'
+            . '<div class="dfz-body">' . $content . '</div></div></div>';
     }
 
     public static function placementFromDomKey(string $key): ?string
