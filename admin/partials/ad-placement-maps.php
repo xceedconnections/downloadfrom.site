@@ -57,7 +57,7 @@ $renderZonePicker = static function (
     }));
     $modeHint = $popupZone
         ? 'Add multiple popup ads — all assigned popups show in order.'
-        : 'Add multiple ads — one rotates per page view (weighted by priority).';
+        : 'Add multiple ads — all assigned ads show together in this zone (stacked).';
     $sizeLabel = AdManager::placementSizeLabel($placementKey);
     ?>
     <div class="<?= Security::escape($classes) ?>" data-placement="<?= Security::escape($mapKey) ?>" data-popup-zone="<?= $popupZone ? '1' : '0' ?>">
@@ -186,7 +186,7 @@ $renderResultWireframe = static function (?string $serviceId, string $linksLabel
 
     <fieldset class="admin-fieldset ad-map-visual-fieldset">
         <legend>Assign ads on the layout</legend>
-        <p class="admin-note">Each zone supports <strong>multiple ads</strong>. Banner zones rotate one ad per page view. Popup zones show every assigned popup in order. Empty zones fall back: provider → service hub → global.</p>
+        <p class="admin-note">Each zone supports <strong>multiple ads</strong>. All assigned ads in a zone display together. Popup zones show every assigned popup in order. Empty zones fall back: provider → service hub → global.</p>
         <p class="admin-note">Ads created here are your own content. They load through a same-origin endpoint so they still appear on the ad-blocker notice screen. Third-party tags in Settings → Custom Codes may remain blocked until the visitor disables their ad blocker.</p>
 
         <details class="ad-map-size-guide">

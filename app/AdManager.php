@@ -322,7 +322,7 @@ class AdManager
                 return $ads;
             }
 
-            return [$this->pickRotatedAd($ads, $mapKey)];
+            return $ads;
         }
 
         $matches = [];
@@ -358,7 +358,7 @@ class AdManager
             return $matches;
         }
 
-        return [$this->pickRotatedAd($matches, self::placementMapKey($placement, $serviceId, $providerId))];
+        return $matches;
     }
 
     /** @return array<int, array> */
@@ -739,7 +739,55 @@ class AdManager
 
         $code = AdScriptRelay::rewriteMarkup($code, $this->baseUrl, $this->relayScripts);
 
+        if (self::needsScriptIsolation($code)) {
+            return '<div class="dfz-raw dfz-raw-isolated">' . $this->renderIsolatedScriptFrame($code) . '</div>';
+        }
+
         return '<div class="dfz-raw">' . $code . '</div>';
+    }
+
+    private static function needsScriptIsolation(string $code): bool
+    {
+        if (!preg_match('/<script\b/i', $code)) {
+            return false;
+        }
+
+        return preg_match('/atOptions\s*=/i', $code) === 1
+            || preg_match('/invoke\.js/i', $code) === 1
+            || preg_match_all('/<script\b/i', $code) > 1;
+    }
+
+    private function renderIsolatedScriptFrame(string $code): string
+    {
+        $dims = self::parseInlineAdDimensions($code);
+        $width = $dims['width'] > 0 ? $dims['width'] : 300;
+        $height = $dims['height'] > 0 ? $dims['height'] : 250;
+        $document = '<!DOCTYPE html><html><head><meta charset="utf-8">'
+            . '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            . '<style>html,body{margin:0;padding:0;overflow:hidden;background:transparent;}</style>'
+            . '</head><body>' . $code . '</body></html>';
+        $srcdoc = htmlspecialchars($document, ENT_QUOTES | ENT_HTML5);
+
+        return '<iframe class="dfz-script-frame" title="Advertisement" loading="lazy" '
+            . 'sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms allow-same-origin" '
+            . 'srcdoc="' . $srcdoc . '" '
+            . 'width="' . $width . '" height="' . $height . '" '
+            . 'style="border:0;display:block;margin:0 auto;max-width:100%;width:' . $width . 'px;height:' . $height . 'px;"></iframe>';
+    }
+
+    /** @return array{width: int, height: int} */
+    private static function parseInlineAdDimensions(string $code): array
+    {
+        $width = 0;
+        $height = 0;
+        if (preg_match("/['\"]width['\"]\s*:\s*(\d+)/", $code, $m)) {
+            $width = (int) $m[1];
+        }
+        if (preg_match("/['\"]height['\"]\s*:\s*(\d+)/", $code, $m)) {
+            $height = (int) $m[1];
+        }
+
+        return ['width' => $width, 'height' => $height];
     }
 
     private function renderVideo(array $content): string

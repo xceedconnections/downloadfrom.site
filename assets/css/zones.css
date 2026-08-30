@@ -177,6 +177,23 @@
     max-width: 100%;
 }
 
+.dfz-raw-isolated {
+    min-height: 0;
+    line-height: 0;
+}
+
+.dfz-script-frame {
+    border: 0;
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+    background: transparent;
+}
+
+.dfz-u + .dfz-u {
+    margin-top: .75rem;
+}
+
 .dfz-pop-tx {
     padding-top: .25rem;
 }
