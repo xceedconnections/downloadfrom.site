@@ -461,8 +461,18 @@ $mediaPreview = static function (string $path): string {
                     <input type="url" name="popup_link_url" value="<?= Security::escape($c['link_url'] ?? '') ?>" placeholder="https://example.com/landing-page">
                 </label>
                 <div class="admin-form-row">
-                    <label>Iframe width (px) <input type="number" name="popup_iframe_width" min="280" max="1200" value="<?= (int) ($c['width'] ?? 600) ?>"></label>
-                    <label>Iframe height (px) <input type="number" name="popup_iframe_height" min="200" max="900" value="<?= (int) ($c['height'] ?? 420) ?>"></label>
+                    <?php
+                    $iframeW = (int) ($c['width'] ?? 600);
+                    $iframeH = (int) ($c['height'] ?? 420);
+                    if ($adType !== 'popup' || $popupMode !== 'iframe') {
+                        $iframeW = 600;
+                        $iframeH = 420;
+                    }
+                    $iframeW = max(280, min(1200, $iframeW));
+                    $iframeH = max(200, min(900, $iframeH));
+                    ?>
+                    <label>Iframe width (px) <input type="number" name="popup_iframe_width" min="280" max="1200" value="<?= $iframeW ?>"></label>
+                    <label>Iframe height (px) <input type="number" name="popup_iframe_height" min="200" max="900" value="<?= $iframeH ?>"></label>
                 </div>
                 <p class="admin-field-hint">Some websites block iframe embedding. If the page stays blank, use HTML mode instead.</p>
             </div>
@@ -528,11 +538,31 @@ $mediaPreview = static function (string $path): string {
     var typeSel = document.getElementById('ad-type');
     var htmlField = document.getElementById('ad-content-html');
     var textField = document.getElementById('ad-content-text');
+    var adForm = document.getElementById('ad-form');
+
+    function setContainerFieldsDisabled(container, disabled) {
+        if (!container) {
+            return;
+        }
+        container.querySelectorAll('input, select, textarea, button').forEach(function (el) {
+            if (el.type === 'hidden') {
+                return;
+            }
+            el.disabled = disabled;
+        });
+    }
+
     function toggleFields() {
         var t = typeSel.value;
-        document.querySelectorAll('.ad-fields-type').forEach(function (el) { el.style.display = 'none'; });
+        document.querySelectorAll('.ad-fields-type').forEach(function (el) {
+            el.style.display = 'none';
+            setContainerFieldsDisabled(el, true);
+        });
         var show = document.querySelector('.ad-fields-' + t);
-        if (show) show.style.display = 'block';
+        if (show) {
+            show.style.display = 'block';
+            setContainerFieldsDisabled(show, false);
+        }
         if (htmlField) htmlField.disabled = (t === 'text' || t === 'popup');
         if (textField) textField.disabled = (t !== 'text');
         if (t === 'text') {
@@ -543,27 +573,44 @@ $mediaPreview = static function (string $path): string {
             AdminWysiwyg.removeIn(textField.closest('fieldset') || document);
         }
         if (t === 'popup') {
-            document.querySelectorAll('.ad-fields-popup').forEach(function (el) { el.style.display = 'block'; });
+            document.querySelectorAll('.ad-fields-popup').forEach(function (el) {
+                el.style.display = 'block';
+                setContainerFieldsDisabled(el, false);
+            });
             togglePopupDisplay();
             togglePopupMode();
+        } else {
+            document.querySelectorAll('.ad-fields-popup, .popup-fields-window, .popup-fields-modal, .popup-mode-panel').forEach(function (el) {
+                setContainerFieldsDisabled(el, true);
+            });
         }
     }
     function togglePopupDisplay() {
         var display = document.querySelector('input[name="popup_display"]:checked');
         var val = display ? display.value : 'modal';
         document.querySelectorAll('.popup-fields-window').forEach(function (el) {
-            el.style.display = val === 'window' ? 'block' : 'none';
+            var active = val === 'window';
+            el.style.display = active ? 'block' : 'none';
+            setContainerFieldsDisabled(el, !active);
         });
         document.querySelectorAll('.popup-fields-modal').forEach(function (el) {
-            el.style.display = val === 'modal' ? 'block' : 'none';
+            var active = val === 'modal';
+            el.style.display = active ? 'block' : 'none';
+            setContainerFieldsDisabled(el, !active);
         });
     }
     function togglePopupMode() {
         var mode = document.querySelector('input[name="popup_mode"]:checked');
         var val = mode ? mode.value : 'html';
-        document.querySelectorAll('.popup-mode-panel').forEach(function (el) { el.style.display = 'none'; });
+        document.querySelectorAll('.popup-mode-panel').forEach(function (el) {
+            el.style.display = 'none';
+            setContainerFieldsDisabled(el, true);
+        });
         var panel = document.querySelector('.popup-mode-' + val);
-        if (panel) panel.style.display = 'block';
+        if (panel) {
+            panel.style.display = 'block';
+            setContainerFieldsDisabled(panel, false);
+        }
     }
     document.querySelectorAll('input[name="popup_mode"]').forEach(function (radio) {
         radio.addEventListener('change', togglePopupMode);
@@ -572,6 +619,15 @@ $mediaPreview = static function (string $path): string {
         radio.addEventListener('change', togglePopupDisplay);
     });
     typeSel.addEventListener('change', toggleFields);
+    if (adForm) {
+        adForm.addEventListener('submit', function () {
+            toggleFields();
+            if (typeSel.value === 'popup') {
+                togglePopupDisplay();
+                togglePopupMode();
+            }
+        });
+    }
     toggleFields();
 })();
 </script>
