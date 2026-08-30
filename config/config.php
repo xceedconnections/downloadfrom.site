@@ -65,7 +65,8 @@ $config = [
     ],
 
     'ytdlp' => [
-        'path' => '',
+        'path' => dirname(__DIR__) . '/bin/yt-dlp',
+        'node_path' => '/usr/bin/node',
         'enabled' => true,
     ],
 

@@ -26,14 +26,23 @@ done
 
 # yt-dlp binary (Linux) — required for YouTube/TikTok/SoundCloud downloads
 YTDLP="$ROOT/bin/yt-dlp"
-if [ ! -x "$YTDLP" ]; then
-    echo "[deploy] downloading yt-dlp..."
-    curl -fsSL "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp" -o "$YTDLP" || {
-        echo "[deploy] WARNING: failed to download yt-dlp — video/audio downloads may not work"
-    }
-fi
+echo "[deploy] updating yt-dlp..."
+curl -fsSL "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp" -o "$YTDLP" || {
+    echo "[deploy] WARNING: failed to download yt-dlp — video/audio downloads may not work"
+}
 if [ -f "$YTDLP" ]; then
     chmod +x "$YTDLP" 2>/dev/null || true
+    chown www:www "$YTDLP" 2>/dev/null || true
+fi
+
+# Ensure config.local.php has yt-dlp + node paths for production
+if [ -f "$ROOT/config/config.local.php" ]; then
+    php "$ROOT/tools/ensure-ytdlp-config.php" || true
+fi
+
+# Clear stale extraction cache (old single-quality results)
+if [ -d "$ROOT/storage/cache" ]; then
+    find "$ROOT/storage/cache" -type f -name '*.json' -delete 2>/dev/null || true
 fi
 
 # Seed MySQL if empty (safe to run every deploy — skips existing stores)
@@ -45,6 +54,13 @@ if [ -f "$ROOT/config/config.local.php" ]; then
 else
     echo "[deploy] ERROR: config/config.local.php missing — create it with MySQL password"
     exit 1
+fi
+
+# Verify yt-dlp returns multiple qualities + MP3
+if [ -x "$YTDLP" ]; then
+    php "$ROOT/tools/verify-ytdlp.php" || {
+        echo "[deploy] WARNING: yt-dlp verification failed — check node at /usr/bin/node and storage/logs"
+    }
 fi
 
 echo "[deploy] done — code updated; admin settings remain in MySQL"
