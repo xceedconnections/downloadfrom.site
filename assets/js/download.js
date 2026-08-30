@@ -3,9 +3,30 @@
 
     var cfg = window.__DOWNLOAD_CONFIG__ || {};
     var countdownSec = Math.max(0, parseInt(cfg.countdown, 10) || 0);
-    var modalHtml = cfg.modalHtml || '';
-    var hasModalAds = modalHtml.trim() !== '';
-    var useGate = cfg.useGate !== false && (hasModalAds || countdownSec > 0);
+    var modalHtmlByService = cfg.modalHtmlByService || {};
+    var defaultModalHtml = cfg.modalHtml || modalHtmlByService.default || '';
+
+    function resolveModalHtml(serviceType) {
+        var key = (serviceType || '').toLowerCase();
+        if (key && modalHtmlByService[key] && modalHtmlByService[key].trim() !== '') {
+            return modalHtmlByService[key];
+        }
+        if (defaultModalHtml.trim() !== '') {
+            return defaultModalHtml;
+        }
+        return modalHtmlByService.default || '';
+    }
+
+    function hasAnyModalAds() {
+        if (defaultModalHtml.trim() !== '') {
+            return true;
+        }
+        return Object.keys(modalHtmlByService).some(function (key) {
+            return String(modalHtmlByService[key] || '').trim() !== '';
+        });
+    }
+
+    var useGate = cfg.useGate !== false && (hasAnyModalAds() || countdownSec > 0);
 
     function startDownload(url, target) {
         if (target === '_blank') {
@@ -16,10 +37,11 @@
     }
 
     function activateModalScripts(container) {
-        if (!container || typeof window.__dfzActivateScripts === 'function') {
-            if (container && typeof window.__dfzActivateScripts === 'function') {
-                window.__dfzActivateScripts(container);
-            }
+        if (!container) {
+            return;
+        }
+        if (typeof window.__dfzActivateScripts === 'function') {
+            window.__dfzActivateScripts(container);
             return;
         }
 
@@ -37,7 +59,10 @@
         });
     }
 
-    function openDownloadModal(url, target) {
+    function openDownloadModal(url, target, serviceType) {
+        var modalHtml = resolveModalHtml(serviceType);
+        var hasModalAds = modalHtml.trim() !== '';
+
         if (!hasModalAds && countdownSec <= 0) {
             startDownload(url, target);
             return;
@@ -166,9 +191,10 @@
         }
 
         var target = btn.getAttribute('data-download-target') || '';
+        var serviceType = btn.getAttribute('data-download-service') || 'default';
 
         if (useGate) {
-            openDownloadModal(url, target);
+            openDownloadModal(url, target, serviceType);
         } else {
             startDownload(url, target);
         }

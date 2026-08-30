@@ -76,16 +76,39 @@
         $dlCountdown = isset($adManager)
             ? max(0, (int) ($adManager->getData()['download_modal_countdown'] ?? 5))
             : 5;
-        $downloadModalHtml = '';
+        $providerIdForAds = ($adProviderId ?? '') !== '' ? $adProviderId : null;
+        $modalHtmlByService = [];
         if (isset($adManager)) {
-            foreach ($adManager->getDownloadModalAds($adServiceId ?? null, ($adProviderId ?? '') !== '' ? $adProviderId : null) as $ad) {
-                $downloadModalHtml .= $adManager->renderAd($ad, 'download_modal');
+            $isCombinedResult = !empty($isCombined ?? false);
+            if ($isCombinedResult && $providerIdForAds !== null) {
+                $modalHtmlByService['video'] = $adManager->renderPlacementHtml(
+                    'download_modal',
+                    'result',
+                    App\ServiceConfig::SERVICE_VIDEO,
+                    $providerIdForAds
+                );
+                $modalHtmlByService['audio'] = $adManager->renderPlacementHtml(
+                    'download_modal',
+                    'result',
+                    App\ServiceConfig::SERVICE_AUDIO,
+                    $providerIdForAds
+                );
             }
+            $modalHtmlByService['default'] = $adManager->renderPlacementHtml(
+                'download_modal',
+                'result',
+                $adServiceId ?? null,
+                $providerIdForAds
+            );
         }
-        $hasDownloadModalAds = trim($downloadModalHtml) !== '';
+        $downloadModalHtml = trim((string) ($modalHtmlByService['default'] ?? ''));
+        $hasDownloadModalAds = $downloadModalHtml !== ''
+            || trim((string) ($modalHtmlByService['video'] ?? '')) !== ''
+            || trim((string) ($modalHtmlByService['audio'] ?? '')) !== '';
         $downloadCfg = [
             'countdown' => $dlCountdown,
             'modalHtml' => $downloadModalHtml,
+            'modalHtmlByService' => $modalHtmlByService,
             'useGate' => $hasDownloadModalAds || $dlCountdown > 0,
         ];
     ?>

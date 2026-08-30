@@ -45,7 +45,8 @@ $useProxy = isset($settings) && App\PlatformConfig::isProxyEnabled($settings, $p
         <?php if ($downloadUrl !== ''): ?>
         <button type="button"
             class="btn btn-primary btn-sm btn-download"
-            data-download-url="<?= App\Security::escape($downloadUrl) ?>"<?= $downloadTarget ? ' data-download-target="' . App\Security::escape($downloadTarget) . '"' : '' ?>>
+            data-download-url="<?= App\Security::escape($downloadUrl) ?>"
+            data-download-service="<?= App\Security::escape($sectionServiceType) ?>"<?= $downloadTarget ? ' data-download-target="' . App\Security::escape($downloadTarget) . '"' : '' ?>>
             Download
         </button>
         <?php endif; ?>

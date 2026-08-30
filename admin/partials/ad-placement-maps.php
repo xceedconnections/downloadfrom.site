@@ -30,9 +30,10 @@ $renderZonePicker = static function (
     string $hint = '',
     ?string $serviceId = null,
     ?string $providerId = null,
-    bool $popupZone = false
+    bool $popupZone = false,
+    ?string $pageScope = null
 ) use ($placementMap, $allAds, $config): void {
-    $mapKey = AdManager::placementMapKey($placementKey, $serviceId, $providerId);
+    $mapKey = AdManager::placementMapKey($placementKey, $serviceId, $providerId, $pageScope);
     $badgeUrl = rtrim((string) ($config['app']['url'] ?? ''), '/') . '/assets/img/advertisement-label.png';
     $badgeFile = dirname(__DIR__, 2) . '/assets/img/advertisement-label.png';
     if (is_file($badgeFile)) {
@@ -46,10 +47,10 @@ $renderZonePicker = static function (
     }
     $selectedIds = $placementMap[$mapKey] ?? [];
     $serviceKey = $serviceId !== null && $providerId !== null
-        ? AdManager::placementMapKey($placementKey, $serviceId)
-        : ($serviceId !== null ? AdManager::placementMapKey($placementKey, $serviceId) : '');
+        ? AdManager::placementMapKey($placementKey, $serviceId, null, $pageScope)
+        : ($serviceId !== null ? AdManager::placementMapKey($placementKey, $serviceId, null, $pageScope) : '');
     $serviceAssigned = $serviceKey !== '' ? ($placementMap[$serviceKey] ?? []) : [];
-    $globalIds = $placementMap[$placementKey] ?? [];
+    $globalIds = $placementMap[AdManager::placementMapKey($placementKey, null, null, $pageScope)] ?? $placementMap[$placementKey] ?? [];
     $classes = trim('wf-block wf-ad wf-zone-picker ' . $extraClass);
     $zoneAds = array_values(array_filter($allAds, static function (array $ad) use ($popupZone): bool {
         $type = (string) ($ad['type'] ?? '');
@@ -120,32 +121,34 @@ $renderZonePicker = static function (
 
 $renderPlatformWireframe = static function (?string $serviceId, ?string $providerId = null, ?string $providerLabel = null) use ($renderZonePicker): void {
     $providerHint = $providerLabel !== null ? $providerLabel . ' page' : 'Converter hub';
+    $pageScope = ($providerId !== null && $providerId !== '') ? 'platform' : 'hub';
     ?>
     <div class="wf-block wf-header"><span class="wf-label">Header</span></div>
-    <?php $renderZonePicker('header_banner', '1', 'Header banner', 'wf-ad-sm', '', $serviceId, $providerId); ?>
+    <?php $renderZonePicker('header_banner', '1', 'Header banner', 'wf-ad-sm', '', $serviceId, $providerId, false, $pageScope); ?>
     <div class="wf-block wf-hero wf-hero-compact">
         <div class="wf-hero-split">
             <div class="wf-hero-left">
                 <span class="wf-label"><?= Security::escape($providerHint) ?> + form</span>
-                <?php $renderZonePicker('platform_top', '3', 'Below form', 'wf-ad-inline', '', $serviceId, $providerId); ?>
+                <?php $renderZonePicker('platform_top', '3', 'Below form', 'wf-ad-inline', '', $serviceId, $providerId, false, $pageScope); ?>
             </div>
             <div class="wf-hero-right">
-                <?php $renderZonePicker('platform_hero_sidebar', '2', 'Hero sidebar', 'wf-ad-highlight wf-ad-fill', 'Right of form (desktop)', $serviceId, $providerId); ?>
+                <?php $renderZonePicker('platform_hero_sidebar', '2', 'Hero sidebar', 'wf-ad-highlight wf-ad-fill', 'Right of form (desktop)', $serviceId, $providerId, false, $pageScope); ?>
             </div>
         </div>
     </div>
     <div class="wf-block wf-content"><span class="wf-label">How to Use + FAQ</span></div>
-    <?php $renderZonePicker('platform_bottom', '4', 'Bottom content', '', '', $serviceId, $providerId); ?>
-    <?php $renderZonePicker('footer_banner', '5', 'Footer banner', 'wf-ad-sm', '', $serviceId, $providerId); ?>
-    <?php $renderZonePicker('popup', 'Popup', 'Timed popup', 'wf-ad-popup', 'Full-screen overlay after delay', $serviceId, $providerId, true); ?>
+    <?php $renderZonePicker('platform_bottom', '4', 'Bottom content', '', '', $serviceId, $providerId, false, $pageScope); ?>
+    <?php $renderZonePicker('footer_banner', '5', 'Footer banner', 'wf-ad-sm', '', $serviceId, $providerId, false, $pageScope); ?>
+    <?php $renderZonePicker('popup', 'Popup', 'Timed popup', 'wf-ad-popup', 'Full-screen overlay after delay', $serviceId, $providerId, true, $pageScope); ?>
     <?php
 };
 
 $renderResultWireframe = static function (?string $serviceId, string $linksLabel = 'Download links', ?string $providerId = null) use ($renderZonePicker): void {
+    $pageScope = 'result';
     ?>
     <div class="wf-block wf-header"><span class="wf-label">Header</span></div>
-    <?php $renderZonePicker('header_banner', '1', 'Header banner', 'wf-ad-sm', '', $serviceId, $providerId); ?>
-    <?php $renderZonePicker('result_top', '2', 'Result top', '', '', $serviceId, $providerId); ?>
+    <?php $renderZonePicker('header_banner', '1', 'Header banner', 'wf-ad-sm', '', $serviceId, $providerId, false, $pageScope); ?>
+    <?php $renderZonePicker('result_top', '2', 'Result top', '', '', $serviceId, $providerId, false, $pageScope); ?>
     <div class="wf-block wf-result-split">
         <div class="wf-result-main">
             <span class="wf-label">Thumbnail + title</span>
@@ -154,13 +157,13 @@ $renderResultWireframe = static function (?string $serviceId, string $linksLabel
             </div>
         </div>
         <div class="wf-result-side">
-            <?php $renderZonePicker('result_sidebar', '3', 'Result sidebar', 'wf-ad-highlight wf-ad-fill', 'Right column', $serviceId, $providerId); ?>
+            <?php $renderZonePicker('result_sidebar', '3', 'Result sidebar', 'wf-ad-highlight wf-ad-fill', 'Right column', $serviceId, $providerId, false, $pageScope); ?>
         </div>
     </div>
-    <?php $renderZonePicker('result_bottom', '4', 'Result bottom', '', '', $serviceId, $providerId); ?>
-    <?php $renderZonePicker('download_modal', 'Modal', 'Download modal', 'wf-ad-modal', 'When user clicks Download', $serviceId, $providerId); ?>
-    <?php $renderZonePicker('footer_banner', '5', 'Footer banner', 'wf-ad-sm', '', $serviceId, $providerId); ?>
-    <?php $renderZonePicker('popup', 'Popup', 'Timed popup', 'wf-ad-popup', 'Full-screen overlay after delay', $serviceId, $providerId, true); ?>
+    <?php $renderZonePicker('result_bottom', '4', 'Result bottom', '', '', $serviceId, $providerId, false, $pageScope); ?>
+    <?php $renderZonePicker('download_modal', 'Modal', 'Download modal', 'wf-ad-modal', 'When user clicks Download', $serviceId, $providerId, false, $pageScope); ?>
+    <?php $renderZonePicker('footer_banner', '5', 'Footer banner', 'wf-ad-sm', '', $serviceId, $providerId, false, $pageScope); ?>
+    <?php $renderZonePicker('popup', 'Popup', 'Timed popup', 'wf-ad-popup', 'Full-screen overlay after delay', $serviceId, $providerId, true, $pageScope); ?>
     <?php
 };
 
@@ -186,7 +189,7 @@ $renderResultWireframe = static function (?string $serviceId, string $linksLabel
 
     <fieldset class="admin-fieldset ad-map-visual-fieldset">
         <legend>Assign ads on the layout</legend>
-        <p class="admin-note">Each zone supports <strong>multiple ads</strong>. All assigned ads in a zone display together. Popup zones show every assigned popup in order. Empty zones fall back: provider → service hub → global.</p>
+        <p class="admin-note">Each zone supports <strong>multiple ads</strong>. Assign ads per page (Home, Provider, Result) so they only show on that page type. Empty zones fall back: provider → service → page → global.</p>
         <p class="admin-note">Ads created here are your own content. They load through a same-origin endpoint so they still appear on the ad-blocker notice screen. Third-party tags in Settings → Custom Codes may remain blocked until the visitor disables their ad blocker.</p>
 
         <details class="ad-map-size-guide">
@@ -243,27 +246,27 @@ $renderResultWireframe = static function (?string $serviceId, string $linksLabel
 
                     <?php elseif ($layout === 'home'): ?>
                     <div class="wf-block wf-header"><span class="wf-label">Header</span></div>
-                    <?php $renderZonePicker('header_banner', '1', 'Header banner', 'wf-ad-sm'); ?>
+                    <?php $renderZonePicker('header_banner', '1', 'Header banner', 'wf-ad-sm', '', null, null, false, 'home'); ?>
                     <div class="wf-block wf-hero">
                         <div class="wf-hero-split">
                             <div class="wf-hero-left">
                                 <span class="wf-label">Title + URL form</span>
                                 <span class="wf-fake-input">Paste URL…</span>
                                 <span class="wf-fake-btn">Generate Links</span>
-                                <?php $renderZonePicker('home_after_form', '3', 'Below form', 'wf-ad-inline'); ?>
+                                <?php $renderZonePicker('home_after_form', '3', 'Below form', 'wf-ad-inline', '', null, null, false, 'home'); ?>
                             </div>
                             <div class="wf-hero-right">
-                                <?php $renderZonePicker('home_hero_sidebar', '2', 'Hero sidebar', 'wf-ad-highlight wf-ad-fill', 'Right of form (desktop)'); ?>
+                                <?php $renderZonePicker('home_hero_sidebar', '2', 'Hero sidebar', 'wf-ad-highlight wf-ad-fill', 'Right of form (desktop)', null, null, false, 'home'); ?>
                             </div>
                         </div>
                         <span class="wf-label wf-label-sub">Supported platforms row</span>
                     </div>
                     <div class="wf-block wf-content"><span class="wf-label">How It Works</span></div>
-                    <?php $renderZonePicker('home_middle', '4', 'Middle content'); ?>
+                    <?php $renderZonePicker('home_middle', '4', 'Middle content', '', '', null, null, false, 'home'); ?>
                     <div class="wf-block wf-content"><span class="wf-label">Supported Platforms + FAQ</span></div>
-                    <?php $renderZonePicker('home_bottom', '5', 'Bottom content'); ?>
-                    <?php $renderZonePicker('footer_banner', '6', 'Footer banner', 'wf-ad-sm'); ?>
-                    <?php $renderZonePicker('popup', 'Popup', 'Timed popup', 'wf-ad-popup', 'Full-screen overlay after delay', null, null, true); ?>
+                    <?php $renderZonePicker('home_bottom', '5', 'Bottom content', '', '', null, null, false, 'home'); ?>
+                    <?php $renderZonePicker('footer_banner', '6', 'Footer banner', 'wf-ad-sm', '', null, null, false, 'home'); ?>
+                    <?php $renderZonePicker('popup', 'Popup', 'Timed popup', 'wf-ad-popup', 'Full-screen overlay after delay', null, null, true, 'home'); ?>
 
                     <?php elseif ($layout === 'platform'): ?>
                     <?php $renderPlatformWireframe($serviceId, $providerId, $providerName); ?>

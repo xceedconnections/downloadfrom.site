@@ -357,12 +357,17 @@
         }
     }
 
+    function maybeStartPopups() {
+        if (window.__DF_GATE_BLOCKED__ || document.documentElement.classList.contains('df-gated')) {
+            return;
+        }
+        startPopupQueue();
+    }
+
     function bootAll() {
         mountOwnedSlots().then(function () {
             mountGatePromo();
-            if (!window.__DF_GATE_BLOCKED__) {
-                startPopupQueue();
-            }
+            maybeStartPopups();
         });
     }
 
@@ -372,11 +377,11 @@
 
     document.addEventListener('df:gate-ready', function () {
         mountGatePromo();
+        maybeStartPopups();
     });
 
     document.addEventListener('df:gate-cleared', function () {
-        if (!window.__DF_GATE_BLOCKED__) {
-            startPopupQueue();
-        }
+        mountGatePromo();
+        maybeStartPopups();
     });
 })();

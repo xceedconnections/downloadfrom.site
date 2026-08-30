@@ -65,6 +65,7 @@
 
     function setBlocked(blocked) {
         window.__DF_GATE_BLOCKED__ = blocked;
+        window.__DF_GATE_READY__ = true;
         document.documentElement.classList.toggle('df-gated', blocked);
         if (gateEl) {
             gateEl.hidden = !blocked;

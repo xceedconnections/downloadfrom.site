@@ -308,7 +308,7 @@ class AdManager
             return [];
         }
 
-        foreach (self::placementMapLookupKeys($placement, $serviceId, $providerId) as $mapKey) {
+        foreach (self::placementMapLookupKeys($placement, $serviceId, $providerId, $pageType) as $mapKey) {
             $adIds = $this->getPlacementMap()[$mapKey] ?? [];
             if ($adIds === []) {
                 continue;
@@ -368,7 +368,7 @@ class AdManager
             return [];
         }
 
-        foreach (self::placementMapLookupKeys($placement, $serviceId, $providerId) as $mapKey) {
+        foreach (self::placementMapLookupKeys($placement, $serviceId, $providerId, $pageType) as $mapKey) {
             $adIds = $this->getPlacementMap()[$mapKey] ?? [];
             if ($adIds === []) {
                 continue;
@@ -641,15 +641,38 @@ class AdManager
     }
 
     /** @return array<int, array> */
-    public function getDownloadModalAds(?string $serviceId = null, ?string $providerId = null): array
+    public function getDownloadModalAds(?string $serviceId = null, ?string $providerId = null, string $pageType = 'result'): array
     {
-        return $this->getForPlacement('download_modal', 'result', $serviceId, $providerId);
+        return $this->getForPlacement('download_modal', $pageType, $serviceId, $providerId);
+    }
+
+    public function renderPlacementHtml(string $placement, string $pageType = 'all', ?string $serviceId = null, ?string $providerId = null): string
+    {
+        $html = '';
+        foreach ($this->getForPlacement($placement, $pageType, $serviceId, $providerId) as $ad) {
+            $chunk = trim($this->renderAd($ad, $placement));
+            if ($chunk === '' || !$this->adChunkHasVisibleContent($chunk)) {
+                continue;
+            }
+            $html .= $chunk;
+        }
+
+        return $html;
+    }
+
+    private function adChunkHasVisibleContent(string $html): bool
+    {
+        if (str_contains($html, '<iframe') || str_contains($html, '<img') || str_contains($html, '<ins') || str_contains($html, '<video')) {
+            return true;
+        }
+
+        return trim(strip_tags($html)) !== '';
     }
 
     /** @return array<int, array> */
-    public function getPopupAds(?string $serviceId = null, ?string $providerId = null): array
+    public function getPopupAds(?string $pageType = 'all', ?string $serviceId = null, ?string $providerId = null): array
     {
-        return $this->getForPlacement('popup', 'all', $serviceId, $providerId);
+        return $this->getForPlacement('popup', $pageType, $serviceId, $providerId);
     }
 
     public function renderAd(array $ad, string $placement = ''): string
@@ -662,11 +685,11 @@ class AdManager
         $wrapEnd = '</div>';
 
         return match ($type) {
-            'banner' => $wrapStart . $this->renderBanner($content) . $wrapEnd,
-            'text' => $wrapStart . $this->renderText($content) . $wrapEnd,
-            'html' => $wrapStart . $this->renderHtml($content) . $wrapEnd,
-            'video' => $wrapStart . $this->renderVideo($content) . $wrapEnd,
-            'network' => $wrapStart . $this->renderHtml($content) . $wrapEnd,
+            'banner' => ($inner = $this->renderBanner($content)) !== '' ? $wrapStart . $inner . $wrapEnd : '',
+            'text' => ($inner = $this->renderText($content)) !== '' ? $wrapStart . $inner . $wrapEnd : '',
+            'html' => ($inner = $this->renderHtml($content)) !== '' ? $wrapStart . $inner . $wrapEnd : '',
+            'video' => ($inner = $this->renderVideo($content)) !== '' ? $wrapStart . $inner . $wrapEnd : '',
+            'network' => ($inner = $this->renderHtml($content)) !== '' ? $wrapStart . $inner . $wrapEnd : '',
             'popup' => $this->renderPopupUnit($ad, $content),
             default => '',
         };
@@ -885,16 +908,16 @@ class AdManager
                 'enabled' => $this->getDownloadModalAds($serviceId, $providerId) !== [],
                 'countdown' => (int) ($this->data['download_modal_countdown'] ?? 5),
             ],
-            'popup' => $this->buildPopupConfig($serviceId, $providerId),
+            'popup' => $this->buildPopupConfig($pageType, $serviceId, $providerId),
             'owned' => $this->buildOwnedConfig($pageType, $serviceId, $providerId),
         ];
     }
 
     /** @return array<int, array<string, mixed>> */
-    private function buildPopupConfig(?string $serviceId = null, ?string $providerId = null): array
+    private function buildPopupConfig(?string $pageType = 'all', ?string $serviceId = null, ?string $providerId = null): array
     {
         $items = [];
-        foreach ($this->getPopupAds($serviceId, $providerId) as $ad) {
+        foreach ($this->getPopupAds($pageType, $serviceId, $providerId) as $ad) {
             $popup = $ad['popup'] ?? [];
             $content = is_array($ad['content'] ?? null) ? $ad['content'] : [];
             $display = (string) ($popup['display'] ?? 'modal');
@@ -1178,9 +1201,12 @@ class AdManager
         return $pages;
     }
 
-    public static function placementMapKey(string $placement, ?string $serviceId = null, ?string $providerId = null): string
+    public static function placementMapKey(string $placement, ?string $serviceId = null, ?string $providerId = null, ?string $pageScope = null): string
     {
         $key = $placement;
+        if ($pageScope !== null && $pageScope !== '' && $pageScope !== 'global') {
+            $key = $pageScope . ':' . $key;
+        }
         if ($serviceId !== null && $serviceId !== '' && $serviceId !== ServiceConfig::SERVICE_ALL) {
             $key .= '@' . $serviceId;
             if ($providerId !== null && $providerId !== '') {
@@ -1191,11 +1217,22 @@ class AdManager
         return $key;
     }
 
-    /** @return array{placement: string, service_id: ?string, provider_id: ?string} */
+    /** @return array{placement: string, page_scope: ?string, service_id: ?string, provider_id: ?string} */
     public static function parsePlacementMapKey(string $key): array
     {
+        $pageScope = null;
+        if (preg_match('/^(home|platform|result|hub):(.+)$/', $key, $pageMatch)) {
+            $pageScope = $pageMatch[1];
+            $key = $pageMatch[2];
+        }
+
         if (!str_contains($key, '@')) {
-            return ['placement' => $key, 'service_id' => null, 'provider_id' => null];
+            return [
+                'placement' => $key,
+                'page_scope' => $pageScope,
+                'service_id' => null,
+                'provider_id' => null,
+            ];
         }
 
         [$placement, $scope] = explode('@', $key, 2);
@@ -1207,6 +1244,7 @@ class AdManager
 
         return [
             'placement' => $placement,
+            'page_scope' => $pageScope,
             'service_id' => $serviceId !== '' ? $serviceId : null,
             'provider_id' => $providerId !== '' ? $providerId : null,
         ];
@@ -1216,6 +1254,11 @@ class AdManager
     {
         $parsed = self::parsePlacementMapKey($key);
         if (!isset(self::PLACEMENTS[$parsed['placement']])) {
+            return false;
+        }
+
+        if ($parsed['page_scope'] !== null
+            && !in_array($parsed['page_scope'], ['home', 'platform', 'result', 'hub'], true)) {
             return false;
         }
 
@@ -1234,11 +1277,38 @@ class AdManager
         return (bool) preg_match('/^[a-z0-9_-]+$/i', $parsed['provider_id']);
     }
 
-    /** @return string[] */
-    public static function placementMapLookupKeys(string $placement, ?string $serviceId = null, ?string $providerId = null): array
+    public static function pageScopeFromPageType(?string $pageType, ?string $providerId = null): ?string
     {
+        return match ($pageType) {
+            'home' => 'home',
+            'result', 'video_result', 'audio_result' => 'result',
+            'platform', 'video_platform', 'audio_platform' => ($providerId !== null && $providerId !== '') ? 'platform' : 'hub',
+            default => null,
+        };
+    }
+
+    /** @return string[] */
+    public static function placementMapLookupKeys(
+        string $placement,
+        ?string $serviceId = null,
+        ?string $providerId = null,
+        ?string $pageType = null
+    ): array {
         $keys = [];
+        $pageScope = self::pageScopeFromPageType($pageType, $providerId);
+
         foreach (self::placementAliases($placement) as $alias) {
+            if ($pageScope !== null) {
+                if ($providerId !== null && $providerId !== ''
+                    && $serviceId !== null && $serviceId !== '' && $serviceId !== ServiceConfig::SERVICE_ALL) {
+                    $keys[] = self::placementMapKey($alias, $serviceId, $providerId, $pageScope);
+                }
+                if ($serviceId !== null && $serviceId !== '' && $serviceId !== ServiceConfig::SERVICE_ALL) {
+                    $keys[] = self::placementMapKey($alias, $serviceId, null, $pageScope);
+                }
+                $keys[] = self::placementMapKey($alias, null, null, $pageScope);
+            }
+
             if ($providerId !== null && $providerId !== ''
                 && $serviceId !== null && $serviceId !== '' && $serviceId !== ServiceConfig::SERVICE_ALL) {
                 $keys[] = self::placementMapKey($alias, $serviceId, $providerId);
