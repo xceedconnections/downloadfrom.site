@@ -696,12 +696,35 @@ class AdManager
     private static function extractAdLinkUrl(array $ad): ?string
     {
         $content = is_array($ad['content'] ?? null) ? $ad['content'] : [];
-        $link = trim((string) ($content['link_url'] ?? ''));
-        if ($link !== '' && preg_match('#^https?://#i', $link)) {
+        $link = self::normalizeExternalUrl((string) ($content['link_url'] ?? ''));
+        if ($link !== null) {
             return $link;
         }
 
+        $html = trim((string) ($content['html'] ?? ''));
+        if ($html !== '' && preg_match('#\bhref=(["\'])(https?://[^"\']+)\1#i', $html, $match)) {
+            return self::normalizeExternalUrl($match[2]);
+        }
+
         return null;
+    }
+
+    private static function normalizeExternalUrl(string $url): ?string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return null;
+        }
+
+        if (!preg_match('#^https?://#i', $url)) {
+            if (preg_match('#^[\w.-]+\.[a-z]{2,}(?:/|$)#i', $url)) {
+                $url = 'https://' . ltrim($url, '/');
+            } else {
+                return null;
+            }
+        }
+
+        return preg_match('#^https?://#i', $url) ? $url : null;
     }
 
     public function renderPlacementHtml(string $placement, string $pageType = 'all', ?string $serviceId = null, ?string $providerId = null): string

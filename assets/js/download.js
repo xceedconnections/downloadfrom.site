@@ -51,20 +51,35 @@
 
     var useGate = cfg.useGate !== false && (hasAnyModalAds() || hasAnyOpenerLinks() || countdownSec > 0);
 
+    function isExternalUrl(url) {
+        return /^https?:\/\//i.test(String(url || '').trim());
+    }
+
+    function openExternalUrl(url) {
+        var trimmed = String(url || '').trim();
+        if (!isExternalUrl(trimmed)) {
+            return;
+        }
+
+        var anchor = document.createElement('a');
+        anchor.href = trimmed;
+        anchor.target = '_blank';
+        anchor.rel = 'noopener noreferrer';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+    }
+
     function startDownload(url, target) {
         if (target === '_blank') {
-            window.open(url, '_blank', 'noopener,noreferrer');
+            openExternalUrl(url);
         } else {
             window.location.href = url;
         }
     }
 
     function openOpenerLinks(serviceType) {
-        resolveOpenerLinks(serviceType).forEach(function (link) {
-            if (link && String(link).indexOf('http') === 0) {
-                window.open(link, '_blank', 'noopener,noreferrer');
-            }
-        });
+        resolveOpenerLinks(serviceType).forEach(openExternalUrl);
     }
 
     function activateModalScripts(container) {
@@ -94,7 +109,7 @@
         var modalHtml = resolveModalHtml(serviceType);
         var hasModalAds = modalHtml.trim() !== '';
 
-        if (!hasModalAds && countdownSec <= 0 && !hasAnyOpenerLinks()) {
+        if (!hasModalAds && countdownSec <= 0) {
             openOpenerLinks(serviceType);
             startDownload(url, target);
             return;

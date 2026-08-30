@@ -396,6 +396,8 @@ $mediaPreview = static function (string $path): string {
             <label>Body
                 <textarea name="content_text_body" class="wysiwyg" id="ad-content-text" rows="8"><?= Security::escape($c['html'] ?? ($c['text'] ?? '')) ?></textarea>
             </label>
+            <label>Click URL <input type="url" name="link_url" value="<?= Security::escape($c['link_url'] ?? '') ?>" placeholder="https://example.com/offer"></label>
+            <p class="admin-field-hint">Required for <strong>Download link opener</strong> zones — opens in a new tab when the visitor clicks Download.</p>
         </fieldset>
 
         <fieldset class="admin-fieldset ad-fields-video ad-fields-type">
