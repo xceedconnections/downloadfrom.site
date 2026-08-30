@@ -4,7 +4,7 @@
     $adServiceId = $adServiceId ?? null;
     $adProviderId = $adProviderId ?? null;
     if (isset($adManager) && $adManager->hasPlacement('footer_banner', $adPageType, $adServiceId, $adProviderId)): ?>
-    <div class="ad-strip ad-strip-footer">
+    <div class="cz-strip cz-strip-footer">
         <div class="container">
             <?php $placement = 'footer_banner'; require __DIR__ . '/partials/ad-zone.php'; ?>
         </div>
@@ -68,8 +68,8 @@
         $footerAdProviderId = $adProviderId ?? null;
         $adCfg = $adManager->getConfig($footerAdPageType, $footerAdServiceId, $footerAdProviderId);
     ?>
-    <script>window.__AD_CONFIG__=<?= json_encode($adCfg, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
-    <script src="<?= App\Security::escape($baseUrl) ?>/assets/js/ads.js" defer></script>
+    <script>window.__DFZ__=<?= json_encode($adCfg, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
+    <script src="<?= App\Security::escape($baseUrl) ?>/assets/js/zones.js" defer></script>
     <?php endif; ?>
     <?php if (!empty($resultToken ?? null)): ?>
     <?php
@@ -97,6 +97,6 @@
     <?php endif; ?>
     <script src="<?= App\Security::escape($baseUrl) ?>/assets/js/session-cleanup.js"></script>
     <script src="<?= App\Security::escape($baseUrl) ?>/assets/js/main.js" defer></script>
-    <?php App\CustomCodes::renderBodyEnd($settings ?? null); ?>
+    <?php App\CustomCodes::renderBodyEnd($settings ?? null, $baseUrl); ?>
 </body>
 </html>

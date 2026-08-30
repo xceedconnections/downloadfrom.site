@@ -380,9 +380,8 @@ class AdManager
             return '';
         }
 
-        $html = '<div class="ad-zone ad-zone-' . Security::escape($placement) . '">';
+        $html = '<div class="cz-slot cz-slot-' . Security::escape($placement) . '">';
         foreach ($ads as $ad) {
-            $html .= '<span class="ad-label">Advertisement</span>';
             $html .= $this->renderAd($ad, $placement);
         }
         $html .= '</div>';
@@ -405,10 +404,10 @@ class AdManager
     public function renderAd(array $ad, string $placement = ''): string
     {
         $type = $ad['type'] ?? 'banner';
-        $id = Security::escape($ad['id'] ?? uniqid('ad', true));
+        $id = Security::escape($ad['id'] ?? uniqid('z', true));
         $content = $ad['content'] ?? [];
 
-        $wrapStart = '<div class="ad-unit ad-type-' . Security::escape($type) . '" data-ad-id="' . $id . '">';
+        $wrapStart = '<div class="cz-unit cz-type-' . Security::escape($type) . '" data-zid="' . $id . '">';
         $wrapEnd = '</div>';
 
         return match ($type) {
@@ -443,10 +442,10 @@ class AdManager
         }
         $link = trim((string) ($content['link_url'] ?? ''));
         $alt = Security::escape($content['alt'] ?? 'Advertisement');
-        $imgTag = '<img src="' . Security::escape($img) . '" alt="' . $alt . '" class="ad-banner-img" loading="lazy">';
+        $imgTag = '<img src="' . Security::escape($img) . '" alt="' . $alt . '" class="cz-banner-img" loading="lazy">';
 
         if ($link !== '') {
-            return '<a href="' . Security::escape($link) . '" class="ad-link" target="_blank" rel="noopener noreferrer sponsored">' . $imgTag . '</a>';
+            return '<a href="' . Security::escape($link) . '" class="cz-link" target="_blank" rel="noopener noreferrer sponsored">' . $imgTag . '</a>';
         }
 
         return $imgTag;
@@ -456,7 +455,7 @@ class AdManager
     {
         $html = trim((string) ($content['html'] ?? ''));
         if ($html !== '') {
-            return '<div class="ad-text-html">' . $html . '</div>';
+            return '<div class="cz-text-html">' . $html . '</div>';
         }
 
         $text = trim((string) ($content['text'] ?? ''));
@@ -468,13 +467,13 @@ class AdManager
         $title = Security::escape($content['title'] ?? '');
         $body = Security::escape($text);
 
-        $inner = ($title !== '' ? '<strong class="ad-text-title">' . $title . '</strong>' : '') . '<p class="ad-text-body">' . $body . '</p>';
+        $inner = ($title !== '' ? '<strong class="cz-text-title">' . $title . '</strong>' : '') . '<p class="cz-text-body">' . $body . '</p>';
 
         if ($link !== '') {
-            return '<a href="' . Security::escape($link) . '" class="ad-text-link" target="_blank" rel="noopener noreferrer sponsored">' . $inner . '</a>';
+            return '<a href="' . Security::escape($link) . '" class="cz-text-link" target="_blank" rel="noopener noreferrer sponsored">' . $inner . '</a>';
         }
 
-        return '<div class="ad-text">' . $inner . '</div>';
+        return '<div class="cz-text">' . $inner . '</div>';
     }
 
     private function renderHtml(array $content): string
@@ -487,7 +486,9 @@ class AdManager
             return '';
         }
 
-        return '<div class="ad-html">' . $code . '</div>';
+        $code = AdScriptRelay::rewriteMarkup($code, $this->baseUrl);
+
+        return '<div class="cz-html">' . $code . '</div>';
     }
 
     private function renderVideo(array $content): string
@@ -498,12 +499,12 @@ class AdManager
         }
 
         if (preg_match('#(?:youtube\.com/watch\?v=|youtu\.be/)([\w-]+)#', $url, $m)) {
-            return '<div class="ad-video-embed"><iframe src="https://www.youtube.com/embed/' . Security::escape($m[1]) . '" title="Advertisement" loading="lazy" allowfullscreen></iframe></div>';
+            return '<div class="cz-video-embed"><iframe src="https://www.youtube.com/embed/' . Security::escape($m[1]) . '" title="Media" loading="lazy" allowfullscreen></iframe></div>';
         }
 
         $src = $this->resolveMediaUrl($url);
 
-        return '<video class="ad-video" controls preload="none" src="' . Security::escape($src) . '"></video>';
+        return '<video class="cz-video" controls preload="none" src="' . Security::escape($src) . '"></video>';
     }
 
     private function renderNetwork(array $ad, array $content): string
@@ -573,6 +574,7 @@ class AdManager
     {
         return [
             'enabled' => $this->isEnabled(),
+            'relay' => rtrim($this->baseUrl, '/') . AdScriptRelay::relayPath() . '?u=',
             'download_modal' => [
                 'enabled' => $this->getDownloadModalAds($serviceId, $providerId) !== [],
                 'countdown' => (int) ($this->data['download_modal_countdown'] ?? 5),
@@ -653,13 +655,13 @@ class AdManager
             }
             $inner = $html !== '' ? $this->renderHtml($content) : '';
             if ($title !== '') {
-                $inner = '<strong class="ad-text-title">' . Security::escape($title) . '</strong>' . $inner;
+                $inner = '<strong class="cz-text-title">' . Security::escape($title) . '</strong>' . $inner;
             }
             $link = trim((string) ($content['link_url'] ?? ''));
             if ($link !== '' && $html === '' && $title !== '') {
-                $inner = '<a href="' . Security::escape($link) . '" class="ad-text-link" target="_blank" rel="noopener noreferrer sponsored">' . $inner . '</a>';
+                $inner = '<a href="' . Security::escape($link) . '" class="cz-text-link" target="_blank" rel="noopener noreferrer sponsored">' . $inner . '</a>';
             }
-            return '<div class="ad-popup-text">' . $inner . '</div>';
+            return '<div class="cz-layer-text">' . $inner . '</div>';
         }
 
         $html = trim((string) ($content['html'] ?? ''));
@@ -683,9 +685,9 @@ class AdManager
         $width = max(280, (int) ($content['width'] ?? 600));
         $height = max(200, (int) ($content['height'] ?? 420));
 
-        return '<div class="ad-popup-iframe-wrap">' .
-            '<iframe class="ad-popup-iframe" src="' . Security::escape($url) . '" ' .
-            'title="Advertisement" width="' . $width . '" height="' . $height . '" ' .
+        return '<div class="cz-layer-iframe-wrap">' .
+            '<iframe class="cz-layer-iframe" src="' . Security::escape($url) . '" ' .
+            'title="Content" width="' . $width . '" height="' . $height . '" ' .
             'loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox" ' .
             'referrerpolicy="no-referrer-when-downgrade"></iframe>' .
             '</div>';

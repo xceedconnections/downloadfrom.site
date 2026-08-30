@@ -30,7 +30,7 @@ require __DIR__ . '/header.php';
                 <?php $placement = 'platform_top'; require __DIR__ . '/partials/ad-zone.php'; ?>
             </div>
             <?php if (isset($adManager) && $adManager->hasPlacement('platform_hero_sidebar', $adPageType ?? 'platform', $adServiceId ?? null, $adProviderId ?? null)): ?>
-            <aside class="hero-ad-column" aria-label="Advertisement">
+            <aside class="hero-side-slot">
                 <?php $placement = 'platform_hero_sidebar'; require __DIR__ . '/partials/ad-zone.php'; ?>
             </aside>
             <?php endif; ?>

@@ -84,6 +84,7 @@ class Router
             $path === '/terms' => $this->renderStatic('Terms of Service', 'terms'),
             $path === '/dmca' => $this->renderStatic('DMCA / Copyright Policy', 'dmca'),
             $path === '/contact' => $this->renderStatic('Contact', 'contact'),
+            $path === '/x/r' => $this->handleScriptRelay(),
             $path === '/' . ServiceConfig::PAGE_FAQ => $this->renderFaq(),
             $path === '/' . ServiceConfig::PAGE_VIDEO => $this->renderService(ServiceConfig::SERVICE_VIDEO),
             $path === '/' . ServiceConfig::PAGE_AUDIO => $this->renderService(ServiceConfig::SERVICE_AUDIO),
@@ -370,5 +371,28 @@ class Router
             ['q' => 'Can I download any video?', 'a' => 'No. We only provide information and links permitted by each platform. Direct downloading is not available where platforms prohibit it.'],
             ['q' => 'Do you store my URLs?', 'a' => 'Results are temporarily cached to improve performance and expire automatically. We do not store personal information.'],
         ];
+    }
+
+    private function handleScriptRelay(): void
+    {
+        $url = AdScriptRelay::decode((string) ($_GET['u'] ?? ''));
+        if ($url === null) {
+            http_response_code(400);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo 'Bad request';
+            return;
+        }
+
+        $body = AdScriptRelay::fetch($url);
+        if ($body === null) {
+            http_response_code(502);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo 'Unavailable';
+            return;
+        }
+
+        header('Content-Type: application/javascript; charset=utf-8');
+        header('Cache-Control: public, max-age=300');
+        echo $body;
     }
 }

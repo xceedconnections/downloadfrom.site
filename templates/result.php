@@ -112,7 +112,7 @@ $showCombinedSplit = $isCombined && $hasVideoLinks && $hasAudioLinks;
 
 
 
-        <div class="result-layout<?= $hasSidebarAds ? ' has-ad-sidebar' : '' ?><?= $showCombinedSplit ? ' has-combined-downloads' : '' ?>">
+        <div class="result-layout<?= $hasSidebarAds ? ' has-side-slot' : '' ?><?= $showCombinedSplit ? ' has-combined-downloads' : '' ?>">
 
             <div class="result-main">
 
@@ -259,9 +259,9 @@ $showCombinedSplit = $isCombined && $hasVideoLinks && $hasAudioLinks;
 
             <?php if ($hasSidebarAds): ?>
 
-            <aside class="ad-sidebar" aria-label="Advertisement">
+            <aside class="result-side-slot">
 
-                <div class="ad-sidebar-inner">
+                <div class="result-side-inner">
 
                     <?php $placement = 'result_sidebar'; require __DIR__ . '/partials/ad-zone.php'; ?>
 

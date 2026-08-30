@@ -689,11 +689,11 @@ body {
     min-width: 0;
 }
 
-.hero-ad-column {
+.hero-side-slot {
     min-width: 0;
 }
 
-.hero-ad-column .ad-zone {
+.hero-side-slot .cz-slot {
     background: var(--color-bg);
     border: 1px dashed var(--color-border);
     border-radius: var(--radius);
@@ -704,14 +704,16 @@ body {
     justify-content: center;
 }
 
-.hero-ad-column .ad-label {
-    color: var(--color-text-muted);
+.hero-side-slot .cz-text,
+.hero-side-slot .cz-text-link,
+.hero-side-slot .cz-text-html {
+    background: var(--color-surface);
 }
 
-.hero-ad-column .ad-text,
-.hero-ad-column .ad-text-link,
-.hero-ad-column .ad-text-html {
-    background: var(--color-surface);
+@media (max-width: 991px) {
+    .hero-side-slot {
+        display: none;
+    }
 }
 
 .hero h1 {

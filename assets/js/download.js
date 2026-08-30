@@ -16,25 +16,23 @@
 
     function openDownloadModal(url, target) {
         var overlay = document.createElement('div');
-        overlay.className = 'ad-modal-overlay';
+        overlay.className = 'cz-modal-overlay';
         var hasSide = modalHtml.trim() !== '';
         overlay.innerHTML =
-            '<div class="ad-modal-wrap">' +
-            '<div class="ad-modal' + (hasSide ? ' has-side-ad' : '') + '">' +
-            '<div class="ad-modal-main">' +
+            '<div class="cz-modal-wrap">' +
+            '<div class="cz-modal' + (hasSide ? ' has-side-slot' : '') + '">' +
+            '<div class="cz-modal-main">' +
             '<h3>Your download is ready</h3>' +
             '<p>Please wait a moment while we prepare your download.</p>' +
-            '<div class="ad-modal-actions">' +
-            '<button type="button" class="btn btn-primary ad-modal-continue" disabled>Continue Download</button>' +
-            '<button type="button" class="btn btn-secondary ad-modal-cancel">Cancel</button>' +
+            '<div class="cz-modal-actions">' +
+            '<button type="button" class="btn btn-primary cz-modal-continue" disabled>Continue Download</button>' +
+            '<button type="button" class="btn btn-secondary cz-modal-cancel">Cancel</button>' +
             '</div>' +
-            '<p class="ad-modal-countdown">Download available in <span class="ad-countdown-num">' + countdownSec + '</span>s</p>' +
+            '<p class="cz-modal-countdown">Download available in <span class="cz-countdown-num">' + countdownSec + '</span>s</p>' +
             '</div>' +
-            (hasSide
-                ? '<div class="ad-modal-side"><span class="ad-label">Advertisement</span>' + modalHtml + '</div>'
-                : '') +
+            (hasSide ? '<div class="cz-modal-side">' + modalHtml + '</div>' : '') +
             '</div>' +
-            '<button type="button" class="ad-modal-close" aria-label="Close">&times;</button>' +
+            '<button type="button" class="cz-modal-close" aria-label="Close">&times;</button>' +
             '</div>';
 
         document.body.appendChild(overlay);
@@ -42,10 +40,10 @@
             overlay.classList.add('open');
         });
 
-        var continueBtn = overlay.querySelector('.ad-modal-continue');
-        var cancelBtn = overlay.querySelector('.ad-modal-cancel');
-        var closeBtn = overlay.querySelector('.ad-modal-close');
-        var numEl = overlay.querySelector('.ad-countdown-num');
+        var continueBtn = overlay.querySelector('.cz-modal-continue');
+        var cancelBtn = overlay.querySelector('.cz-modal-cancel');
+        var closeBtn = overlay.querySelector('.cz-modal-close');
+        var numEl = overlay.querySelector('.cz-countdown-num');
         var remaining = countdownSec;
 
         function closeModal() {
@@ -76,7 +74,7 @@
                     continueBtn.disabled = false;
                     continueBtn.textContent = 'Continue Download';
                 }
-                var countdownEl = overlay.querySelector('.ad-modal-countdown');
+                var countdownEl = overlay.querySelector('.cz-modal-countdown');
                 if (countdownEl) {
                     countdownEl.textContent = 'Click Continue to start your download.';
                 }

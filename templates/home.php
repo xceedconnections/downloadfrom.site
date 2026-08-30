@@ -19,7 +19,7 @@ require __DIR__ . '/header.php';
                 <?php $placement = 'home_after_form'; require __DIR__ . '/partials/ad-zone.php'; ?>
             </div>
             <?php if (isset($adManager) && $adManager->hasPlacement('home_hero_sidebar', $adPageType ?? 'home', $adServiceId ?? null)): ?>
-            <aside class="hero-ad-column" aria-label="Advertisement">
+            <aside class="hero-side-slot">
                 <?php $placement = 'home_hero_sidebar'; require __DIR__ . '/partials/ad-zone.php'; ?>
             </aside>
             <?php endif; ?>

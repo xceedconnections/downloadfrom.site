@@ -80,7 +80,7 @@ $siteName = $settings ? (string) ($settings->get('site_name') ?: $config['app'][
 
     <link rel="stylesheet" href="<?= App\Security::escape($baseUrl) ?>/assets/css/main.css">
 
-    <link rel="stylesheet" href="<?= App\Security::escape($baseUrl) ?>/assets/css/ads.css">
+    <link rel="stylesheet" href="<?= App\Security::escape($baseUrl) ?>/assets/css/zones.css">
 
     <?php foreach ($jsonLdScripts as $jsonLd): ?>
 
@@ -88,7 +88,7 @@ $siteName = $settings ? (string) ($settings->get('site_name') ?: $config['app'][
 
     <?php endforeach; ?>
 
-    <?php App\CustomCodes::renderHead($settings ?? null); ?>
+    <?php App\CustomCodes::renderHead($settings ?? null, $baseUrl); ?>
 
 </head>
 
@@ -181,7 +181,7 @@ $siteName = $settings ? (string) ($settings->get('site_name') ?: $config['app'][
     $adServiceId = $adServiceId ?? null;
     $adProviderId = $adProviderId ?? null;
     if (isset($adManager) && $adManager->hasPlacement('header_banner', $adPageType, $adServiceId, $adProviderId)): ?>
-    <div class="ad-strip ad-strip-header">
+    <div class="cz-strip cz-strip-header">
         <div class="container">
             <?php $placement = 'header_banner'; require __DIR__ . '/partials/ad-zone.php'; ?>
         </div>
