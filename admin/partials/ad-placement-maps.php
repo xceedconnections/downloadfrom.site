@@ -58,11 +58,15 @@ $renderZonePicker = static function (
     $modeHint = $popupZone
         ? 'Add multiple popup ads — all assigned popups show in order.'
         : 'Add multiple ads — one rotates per page view (weighted by priority).';
+    $sizeLabel = AdManager::placementSizeLabel($placementKey);
     ?>
     <div class="<?= Security::escape($classes) ?>" data-placement="<?= Security::escape($mapKey) ?>" data-popup-zone="<?= $popupZone ? '1' : '0' ?>">
         <span class="wf-ad-num"><?= Security::escape($num) ?></span>
         <img src="<?= Security::escape($badgeUrl) ?>" alt="" class="wf-ad-mark">
         <span class="wf-ad-title wf-ad-title-muted"><?= Security::escape($title) ?></span>
+        <?php if ($sizeLabel !== ''): ?>
+        <span class="wf-ad-size"><?= Security::escape($sizeLabel) ?></span>
+        <?php endif; ?>
         <?php if ($hint !== ''): ?>
         <span class="wf-ad-hint"><?= Security::escape($hint) ?></span>
         <?php endif; ?>
@@ -184,6 +188,36 @@ $renderResultWireframe = static function (?string $serviceId, string $linksLabel
         <legend>Assign ads on the layout</legend>
         <p class="admin-note">Each zone supports <strong>multiple ads</strong>. Banner zones rotate one ad per page view. Popup zones show every assigned popup in order. Empty zones fall back: provider → service hub → global.</p>
         <p class="admin-note">Ads created here are your own content. They load through a same-origin endpoint so they still appear on the ad-blocker notice screen. Third-party tags in Settings → Custom Codes may remain blocked until the visitor disables their ad blocker.</p>
+
+        <details class="ad-map-size-guide">
+            <summary>Ad box size guide (recommended dimensions)</summary>
+            <div class="ad-map-size-table-wrap">
+                <table class="admin-table ad-map-size-table">
+                    <thead>
+                        <tr>
+                            <th>Zone</th>
+                            <th>Recommended size</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach (AdManager::PLACEMENTS as $placementKey => $placementLabel):
+                            $size = AdManager::placementSize($placementKey);
+                            if ($size === null) {
+                                continue;
+                            }
+                        ?>
+                        <tr>
+                            <td><?= Security::escape($placementLabel) ?></td>
+                            <td><strong><?= (int) $size['width'] ?>×<?= (int) $size['height'] ?> px</strong></td>
+                            <td><?= Security::escape($size['note']) ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <p class="admin-note ad-map-size-footnote">Image ads scale down on smaller screens. Sidebars (hero &amp; result) only show on desktop (992px+). Text and HTML ads wrap inside the box width.</p>
+        </details>
 
         <div class="ad-map-grid">
         <?php foreach ($mapPages as $pageId => $page):

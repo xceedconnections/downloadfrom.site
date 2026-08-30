@@ -36,6 +36,84 @@ class AdManager
         'popup' => 'Popup overlay (timed)',
     ];
 
+    /**
+     * Recommended creative sizes per zone (desktop-first; sidebars hidden below 992px).
+     *
+     * @var array<string, array{width: int, height: int, note: string}>
+     */
+    public const PLACEMENT_SIZES = [
+        'header_banner' => [
+            'width' => 728,
+            'height' => 90,
+            'note' => 'Full-width banner (max ~1168px). Best: 728×90 or 970×90.',
+        ],
+        'footer_banner' => [
+            'width' => 728,
+            'height' => 90,
+            'note' => 'Full-width banner (max ~1168px). Best: 728×90 or 970×90.',
+        ],
+        'home_hero_sidebar' => [
+            'width' => 300,
+            'height' => 250,
+            'note' => 'Desktop sidebar only (260–320px wide, min box 280px tall). Hidden on mobile.',
+        ],
+        'home_after_form' => [
+            'width' => 728,
+            'height' => 90,
+            'note' => 'Below URL form (~760px max wide). Best: 728×90 or responsive width.',
+        ],
+        'home_middle' => [
+            'width' => 728,
+            'height' => 90,
+            'note' => 'Content area full width (max ~1168px). Best: 728×90 or 970×250.',
+        ],
+        'home_bottom' => [
+            'width' => 728,
+            'height' => 90,
+            'note' => 'Content area full width (max ~1168px). Best: 728×90 or 970×250.',
+        ],
+        'platform_hero_sidebar' => [
+            'width' => 300,
+            'height' => 250,
+            'note' => 'Desktop sidebar only (260–320px wide, min box 280px tall). Hidden on mobile.',
+        ],
+        'platform_top' => [
+            'width' => 728,
+            'height' => 90,
+            'note' => 'Below form on provider page (~760px max wide). Best: 728×90.',
+        ],
+        'platform_bottom' => [
+            'width' => 728,
+            'height' => 90,
+            'note' => 'Content area full width (max ~1168px). Best: 728×90 or 970×250.',
+        ],
+        'result_top' => [
+            'width' => 728,
+            'height' => 90,
+            'note' => 'Above result content (max ~1168px). Best: 728×90.',
+        ],
+        'result_sidebar' => [
+            'width' => 300,
+            'height' => 250,
+            'note' => 'Desktop right column (300px wide, sticky). Hidden on mobile.',
+        ],
+        'result_bottom' => [
+            'width' => 728,
+            'height' => 90,
+            'note' => 'Below download links (max ~1168px). Best: 728×90 or 970×250.',
+        ],
+        'download_modal' => [
+            'width' => 250,
+            'height' => 250,
+            'note' => 'Download modal side slot (~248px wide on desktop). Stacks full-width on mobile.',
+        ],
+        'popup' => [
+            'width' => 600,
+            'height' => 400,
+            'note' => 'Overlay popup (max ~600px text / ~820px iframe). Best: 600×400 or 820×460.',
+        ],
+    ];
+
     public const PAGE_TYPES = [
         'all' => 'All pages',
         'home' => 'Homepage only',
@@ -1133,5 +1211,21 @@ class AdManager
             'home_top' => ['home_after_form', 'home_top'],
             default => [$placement],
         };
+    }
+
+    /** @return array{width: int, height: int, note: string}|null */
+    public static function placementSize(string $placement): ?array
+    {
+        return self::PLACEMENT_SIZES[$placement] ?? null;
+    }
+
+    public static function placementSizeLabel(string $placement): string
+    {
+        $size = self::placementSize($placement);
+        if ($size === null) {
+            return '';
+        }
+
+        return sprintf('%d×%d px — %s', $size['width'], $size['height'], $size['note']);
     }
 }
