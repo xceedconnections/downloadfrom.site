@@ -97,6 +97,6 @@
     <?php endif; ?>
     <script src="<?= App\Security::escape($baseUrl) ?>/assets/js/session-cleanup.js"></script>
     <script src="<?= App\Security::escape($baseUrl) ?>/assets/js/main.js" defer></script>
-    <?php App\CustomCodes::renderBodyEnd($settings ?? null, $baseUrl); ?>
+    <?php App\CustomCodes::renderBodyEnd($settings ?? null, $baseUrl, (bool) ($config['ads']['relay_scripts'] ?? true)); ?>
 </body>
 </html>

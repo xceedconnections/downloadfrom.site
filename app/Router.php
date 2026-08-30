@@ -385,9 +385,7 @@ class Router
 
         $body = AdScriptRelay::fetch($url);
         if ($body === null) {
-            http_response_code(502);
-            header('Content-Type: text/plain; charset=utf-8');
-            echo 'Unavailable';
+            header('Location: ' . $url, true, 302);
             return;
         }
 

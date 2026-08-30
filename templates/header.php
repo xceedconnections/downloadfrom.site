@@ -88,7 +88,7 @@ $siteName = $settings ? (string) ($settings->get('site_name') ?: $config['app'][
 
     <?php endforeach; ?>
 
-    <?php App\CustomCodes::renderHead($settings ?? null, $baseUrl); ?>
+    <?php App\CustomCodes::renderHead($settings ?? null, $baseUrl, (bool) ($config['ads']['relay_scripts'] ?? true)); ?>
 
 </head>
 

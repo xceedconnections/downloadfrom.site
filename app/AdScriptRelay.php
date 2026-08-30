@@ -60,15 +60,15 @@ final class AdScriptRelay
             return null;
         }
 
-        $resolved = Security::resolveAndValidateHost($host, [$host]);
-        if ($resolved === null) {
+        if (Security::resolveAndValidateHost($host, [$host]) === null) {
             return null;
         }
 
-        $http = new HttpClient();
+        $http = new HttpClient([$host]);
         $response = $http->get($url, [
-            'User-Agent: Mozilla/5.0 (compatible; ContentRelay/1.0)',
+            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
             'Accept: application/javascript,text/javascript,*/*;q=0.8',
+            'Referer: https://' . $host . '/',
         ]);
 
         if (!$response['success'] || !is_string($response['body'] ?? null) || $response['body'] === '') {
@@ -78,17 +78,35 @@ final class AdScriptRelay
         return $response['body'];
     }
 
-    public static function rewriteMarkup(string $html, string $baseUrl): string
+    public static function normalizeRemoteUrl(string $url): ?string
     {
-        if ($html === '') {
-            return '';
+        $url = html_entity_decode(trim($url), ENT_QUOTES | ENT_HTML5);
+        if ($url === '') {
+            return null;
+        }
+
+        if (str_starts_with($url, '//')) {
+            $url = 'https:' . $url;
+        }
+
+        if (!preg_match('#^https://#i', $url)) {
+            return null;
+        }
+
+        return $url;
+    }
+
+    public static function rewriteMarkup(string $html, string $baseUrl, bool $relayEnabled = true): string
+    {
+        if ($html === '' || !$relayEnabled) {
+            return $html;
         }
 
         $html = preg_replace_callback(
             '/(<script\b[^>]*\ssrc=(["\']))([^"\']+)\2/i',
             static function (array $m) use ($baseUrl): string {
-                $src = html_entity_decode(trim($m[3]), ENT_QUOTES | ENT_HTML5);
-                if (!self::shouldRelay($src, $baseUrl)) {
+                $src = self::normalizeRemoteUrl($m[3]);
+                if ($src === null || !self::shouldRelay($src, $baseUrl)) {
                     return $m[0];
                 }
 
@@ -98,10 +116,10 @@ final class AdScriptRelay
         ) ?? $html;
 
         return preg_replace_callback(
-            "/\\.src\\s*=\\s*(['\"])(https:\\/\\/[^'\"]+)\\1/i",
+            "/\\.src\\s*=\\s*(['\"])([^'\"]+)\\1/i",
             static function (array $m) use ($baseUrl): string {
-                $src = html_entity_decode($m[2], ENT_QUOTES | ENT_HTML5);
-                if (!self::shouldRelay($src, $baseUrl)) {
+                $src = self::normalizeRemoteUrl($m[2]);
+                if ($src === null || !self::shouldRelay($src, $baseUrl)) {
                     return $m[0];
                 }
 
@@ -113,7 +131,7 @@ final class AdScriptRelay
 
     private static function shouldRelay(string $src, string $baseUrl): bool
     {
-        if ($src === '' || !preg_match('#^https://#i', $src)) {
+        if ($src === '') {
             return false;
         }
 
@@ -125,6 +143,6 @@ final class AdScriptRelay
             return false;
         }
 
-        return true;
+        return preg_match('#^https://#i', $src) === 1;
     }
 }

@@ -17,6 +17,7 @@ class AdManager
     private AdsRepository $repo;
     private array $data;
     private string $baseUrl;
+    private bool $relayScripts = true;
 
     public const PLACEMENTS = [
         'header_banner' => 'Header banner (all pages)',
@@ -67,6 +68,16 @@ class AdManager
         'taboola' => 'Taboola',
         'outbrain' => 'Outbrain',
     ];
+
+    public function setRelayScripts(bool $enabled): void
+    {
+        $this->relayScripts = $enabled;
+    }
+
+    public function relayScriptsEnabled(): bool
+    {
+        return $this->relayScripts;
+    }
 
     public function __construct(StorageInterface $db, string $baseUrl)
     {
@@ -486,7 +497,7 @@ class AdManager
             return '';
         }
 
-        $code = AdScriptRelay::rewriteMarkup($code, $this->baseUrl);
+        $code = AdScriptRelay::rewriteMarkup($code, $this->baseUrl, $this->relayScripts);
 
         return '<div class="cz-html">' . $code . '</div>';
     }

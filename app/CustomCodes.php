@@ -27,7 +27,7 @@ final class CustomCodes
         return trim((string) $settings->get('custom_codes.body_end', ''));
     }
 
-    public static function renderHead(?Settings $settings, string $baseUrl = ''): void
+    public static function renderHead(?Settings $settings, string $baseUrl = '', bool $relayScripts = true): void
     {
         $html = self::headHtml($settings);
         if ($html === '') {
@@ -35,13 +35,13 @@ final class CustomCodes
         }
 
         if ($baseUrl !== '') {
-            $html = AdScriptRelay::rewriteMarkup($html, $baseUrl);
+            $html = AdScriptRelay::rewriteMarkup($html, $baseUrl, $relayScripts);
         }
 
         echo "\n" . $html . "\n";
     }
 
-    public static function renderBodyEnd(?Settings $settings, string $baseUrl = ''): void
+    public static function renderBodyEnd(?Settings $settings, string $baseUrl = '', bool $relayScripts = true): void
     {
         $html = self::bodyEndHtml($settings);
         if ($html === '') {
@@ -49,7 +49,7 @@ final class CustomCodes
         }
 
         if ($baseUrl !== '') {
-            $html = AdScriptRelay::rewriteMarkup($html, $baseUrl);
+            $html = AdScriptRelay::rewriteMarkup($html, $baseUrl, $relayScripts);
         }
 
         echo "\n" . $html . "\n";

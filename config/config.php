@@ -74,6 +74,11 @@ $config = [
         'proxy_enabled' => false,
     ],
 
+    'ads' => [
+        // When false, third-party ad scripts load directly (more compatible, easier for ad blockers to target).
+        'relay_scripts' => true,
+    ],
+
     'headers' => [
         'X-Frame-Options' => 'SAMEORIGIN',
         'X-Content-Type-Options' => 'nosniff',
