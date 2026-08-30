@@ -82,7 +82,19 @@ $config = [
         'Permissions-Policy' => 'geolocation=(), microphone=(), camera=()',
     ],
 
-    'csp' => "default-src 'self'; script-src 'self' 'unsafe-inline' https://pagead2.googlesyndication.com https://www.googletagmanager.com https://cdn.propellerads.com https://www.google-analytics.com https://www.gstatic.com https://partner.googleadservices.com https://securepubads.g.doubleclick.net https://www.googletagservices.com https://static.adsterra.com https://cdn.adsterra.com https://n6wxm.com https://cdn.monetag.com https://*.monetag.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self' https:; frame-src 'self' https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.youtube.com https://googleads.g.doubleclick.net https://bid.g.doubleclick.net https://n6wxm.com https://cdn.monetag.com https://*.monetag.com; frame-ancestors 'self'; base-uri 'self'; form-action 'self'",
+    // Permissive CSP so any ad network (Monetag, AdSense, PropellerAds, etc.) can load scripts, iframes, and beacons.
+    'csp' => "default-src 'self'; "
+        . "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http: blob:; "
+        . "style-src 'self' 'unsafe-inline' https:; "
+        . "img-src 'self' data: blob: https: http:; "
+        . "font-src 'self' data: https:; "
+        . "connect-src 'self' https: http: wss:; "
+        . "frame-src 'self' https: http:; "
+        . "media-src 'self' https: http: blob:; "
+        . "child-src 'self' https: http: blob:; "
+        . "frame-ancestors 'self'; "
+        . "base-uri 'self'; "
+        . "form-action 'self'",
 ];
 
 $localConfig = dirname(__DIR__) . '/config/config.local.php';
