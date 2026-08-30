@@ -101,7 +101,7 @@ require __DIR__ . '/layout/header.php';
 
     <fieldset class="admin-fieldset">
         <legend>Custom Codes</legend>
-        <p class="admin-note">Paste verification or tracking snippets (Google AdSense, Analytics, etc.). Output on every public page as raw HTML.</p>
+        <p class="admin-note">Paste verification or tracking snippets (Google AdSense, Monetag, Analytics, etc.). Head code is best for Monetag Vignette tags. Output on every public page as raw HTML.</p>
         <label>Head code <span class="hint">(inside &lt;head&gt;, before &lt;/head&gt;)</span>
             <textarea name="custom_codes_head" rows="8" class="code-area" spellcheck="false" placeholder="<script async src=&quot;https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-...&quot; crossorigin=&quot;anonymous&quot;></script>"><?= Security::escape($currentSettings['custom_codes']['head'] ?? '') ?></textarea>
         </label>
