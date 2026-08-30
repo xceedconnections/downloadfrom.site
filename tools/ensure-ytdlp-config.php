@@ -6,6 +6,8 @@ declare(strict_types=1);
  * Ensures config.local.php contains production yt-dlp + node paths after deploy.
  * Safe to run on every deploy — preserves existing DB credentials and other settings.
  */
+require dirname(__DIR__) . '/app/bootstrap.php';
+
 $root = dirname(__DIR__);
 $localFile = $root . '/config/config.local.php';
 
@@ -18,17 +20,8 @@ if (!is_file($localFile)) {
 $local = require $localFile;
 
 $ytdlpBin = $root . '/bin/yt-dlp';
-$nodePath = '/usr/bin/node';
-if (is_executable('/usr/bin/node')) {
-    $nodePath = '/usr/bin/node';
-} elseif (is_executable('/usr/local/bin/node')) {
-    $nodePath = '/usr/local/bin/node';
-} else {
-    $which = trim((string) shell_exec('command -v node 2>/dev/null'));
-    if ($which !== '' && is_executable($which)) {
-        $nodePath = $which;
-    }
-}
+$resolvedNode = App\YtDlpHelper::resolveNodePath($config);
+$nodePath = $resolvedNode ?? '/usr/bin/node';
 
 $local['ytdlp'] = array_replace(
     [
@@ -43,9 +36,12 @@ $local['ytdlp']['path'] = $ytdlpBin;
 $local['ytdlp']['node_path'] = $nodePath;
 $local['ytdlp']['enabled'] = !empty($local['ytdlp']['enabled']);
 
-if (!is_executable($nodePath) && !is_file($nodePath)) {
-    fwrite(STDERR, "WARNING: Node.js not found at {$nodePath} — YouTube may return 360p only.\n");
-    fwrite(STDERR, "Install Node on the server: curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt install -y nodejs\n");
+if ($resolvedNode === null) {
+    fwrite(STDERR, "WARNING: Node.js not found in PATH or common locations — YouTube may return 360p only.\n");
+    fwrite(STDERR, "Install Node: curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt install -y nodejs\n");
+} else {
+    $nodeVer = trim((string) App\YtDlpHelper::exec(escapeshellarg($resolvedNode) . ' --version 2>&1'));
+    echo "Node verified: {$resolvedNode} ({$nodeVer})\n";
 }
 
 $export = var_export($local, true);

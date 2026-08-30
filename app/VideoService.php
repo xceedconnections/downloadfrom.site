@@ -357,7 +357,7 @@ class VideoService
         }
 
         if (!empty($data['combined']) && !empty($data['normalized_url'])) {
-            foreach ([ServiceConfig::SERVICE_ALL, ServiceConfig::SERVICE_VIDEO, ServiceConfig::SERVICE_AUDIO] as $serviceId) {
+            foreach ([ServiceConfig::SERVICE_VIDEO, ServiceConfig::SERVICE_AUDIO] as $serviceId) {
                 $this->cache->delete(self::CACHE_VERSION . '|' . $serviceId . '|' . (string) $data['normalized_url']);
             }
         } elseif (!empty($data['service']) && !empty($data['normalized_url'])) {

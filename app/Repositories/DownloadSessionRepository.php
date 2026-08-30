@@ -96,4 +96,12 @@ final class DownloadSessionRepository
         $stmt->execute([$token]);
         return (bool) $stmt->fetchColumn();
     }
+
+    public function countActive(): int
+    {
+        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM download_sessions WHERE expires_at > ?');
+        $stmt->execute([time()]);
+
+        return (int) $stmt->fetchColumn();
+    }
 }

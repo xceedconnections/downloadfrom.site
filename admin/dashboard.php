@@ -30,8 +30,16 @@ require __DIR__ . '/layout/header.php';
         <span class="stat-label">Failed</span>
     </div>
     <div class="stat-card">
-        <span class="stat-value"><?= $cache->count() ?></span>
-        <span class="stat-label">Cached Items</span>
+        <?php
+        $cacheStats = $cache->stats();
+        $sessionRepo = new App\Repositories\DownloadSessionRepository(App\Storage\DatabaseConnection::get());
+        ?>
+        <span class="stat-value"><?= (int) $cacheStats['active_files'] ?></span>
+        <span class="stat-label">Extraction cache</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-value"><?= $sessionRepo->countActive() ?></span>
+        <span class="stat-label">Active sessions</span>
     </div>
     <div class="stat-card">
         <span class="stat-value"><?= (int) $rateStats['requests_24h'] ?></span>

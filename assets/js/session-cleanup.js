@@ -2,13 +2,12 @@
     'use strict';
 
     var STORAGE_KEY = 'pending_result_cleanup';
+    var cleaned = {};
 
-    function getPending() {
+    function clearPending() {
         try {
-            return sessionStorage.getItem(STORAGE_KEY) || '';
-        } catch (e) {
-            return '';
-        }
+            sessionStorage.removeItem(STORAGE_KEY);
+        } catch (e) { /* ignore */ }
     }
 
     function setPending(token, cleanupUrl) {
@@ -17,12 +16,6 @@
         }
         try {
             sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ token: token, url: cleanupUrl }));
-        } catch (e) { /* ignore */ }
-    }
-
-    function clearPending() {
-        try {
-            sessionStorage.removeItem(STORAGE_KEY);
         } catch (e) { /* ignore */ }
     }
 
@@ -49,9 +42,11 @@
     }
 
     function fireCleanup(cfg, sync) {
-        if (!cfg || !cfg.url) {
+        if (!cfg || !cfg.url || cleaned[cfg.token]) {
             return false;
         }
+
+        cleaned[cfg.token] = true;
 
         if (sync) {
             try {
@@ -90,22 +85,50 @@
         try {
             var img = new Image();
             img.src = cfg.url + (cfg.url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(cfg.token) + '&_=' + Date.now();
+            clearPending();
             return true;
         } catch (e4) { /* ignore */ }
 
         return false;
     }
 
+    function runCleanup(sync) {
+        var cfg = readPendingConfig();
+        if (!cfg) {
+            return false;
+        }
+        return fireCleanup(cfg, sync);
+    }
+
+    var currentToken = window.__RESULT_TOKEN__ || '';
     var cfg = readPendingConfig();
+
+    if (cfg && !currentToken) {
+        fireCleanup(cfg, false);
+        return;
+    }
+
     if (!cfg) {
         return;
     }
 
     window.addEventListener('pagehide', function () {
-        fireCleanup(cfg, false);
+        runCleanup(false);
     });
 
     window.addEventListener('beforeunload', function () {
-        fireCleanup(cfg, true);
+        runCleanup(true);
     });
+
+    document.addEventListener('click', function (e) {
+        var link = e.target.closest('a[href]');
+        if (!link || link.target === '_blank' || link.hasAttribute('download')) {
+            return;
+        }
+        var href = link.getAttribute('href') || '';
+        if (href === '' || href.charAt(0) === '#') {
+            return;
+        }
+        runCleanup(false);
+    }, true);
 })();

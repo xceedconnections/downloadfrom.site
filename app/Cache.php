@@ -122,6 +122,43 @@ class Cache
         return count(glob($this->cachePath . '/*.json') ?: []);
     }
 
+    /** @return array{enabled: bool, path: string, ttl: int, total_files: int, active_files: int} */
+    public function stats(): array
+    {
+        $total = 0;
+        $active = 0;
+        $now = time();
+
+        foreach (glob($this->cachePath . '/*.json') ?: [] as $file) {
+            if (!is_file($file)) {
+                continue;
+            }
+
+            $total++;
+            $content = @file_get_contents($file);
+            if ($content === false || $content === '') {
+                continue;
+            }
+
+            $data = json_decode($content, true);
+            if (!is_array($data) || !isset($data['timestamp'])) {
+                continue;
+            }
+
+            if ($now - (int) $data['timestamp'] <= $this->ttl) {
+                $active++;
+            }
+        }
+
+        return [
+            'enabled' => $this->enabled,
+            'path' => $this->cachePath,
+            'ttl' => $this->ttl,
+            'total_files' => $total,
+            'active_files' => $active,
+        ];
+    }
+
     private function filePath(string $normalizedUrl): string
     {
         return $this->cachePath . '/' . hash('sha256', $normalizedUrl) . '.json';
