@@ -64,6 +64,62 @@ final class YtDlpFormatLinks
         return $links;
     }
 
+    /**
+     * Merge download link lists (yt-dlp + Innertube). Later groups fill gaps; earlier win on duplicate quality.
+     *
+     * @param array<int, array<string, mixed>> ...$groups
+     * @return array<int, array<string, mixed>>
+     */
+    public static function mergeDownloadLinks(array ...$groups): array
+    {
+        $byKey = [];
+
+        foreach ($groups as $links) {
+            foreach ($links as $link) {
+                if (empty($link['url']) || empty($link['download'])) {
+                    continue;
+                }
+
+                $quality = (string) ($link['quality'] ?? '');
+                $ext = strtolower((string) ($link['ext'] ?? ''));
+                $combined = !empty($link['combined']) ? '1' : '0';
+                $key = $quality . '|' . $ext . '|' . $combined;
+
+                if (!isset($byKey[$key])) {
+                    $byKey[$key] = $link;
+                }
+            }
+        }
+
+        if ($byKey === []) {
+            return [];
+        }
+
+        $merged = array_values($byKey);
+        usort($merged, static function (array $a, array $b): int {
+            $aIsVideo = str_contains((string) ($a['quality'] ?? ''), 'p');
+            $bIsVideo = str_contains((string) ($b['quality'] ?? ''), 'p');
+
+            if ($aIsVideo !== $bIsVideo) {
+                return $aIsVideo ? -1 : 1;
+            }
+
+            if ($aIsVideo) {
+                $heightA = (int) preg_replace('/\D+/', '', (string) ($a['quality'] ?? '0'));
+                $heightB = (int) preg_replace('/\D+/', '', (string) ($b['quality'] ?? '0'));
+
+                return $heightB <=> $heightA;
+            }
+
+            $abrA = (int) preg_replace('/\D+/', '', (string) ($a['quality'] ?? '0'));
+            $abrB = (int) preg_replace('/\D+/', '', (string) ($b['quality'] ?? '0'));
+
+            return $abrB <=> $abrA;
+        });
+
+        return $merged;
+    }
+
     /** @param array<int, array<string, mixed>> $formats @return array<int, array<string, mixed>> */
     public static function buildAudioMp3Links(array $formats): array
     {
@@ -87,7 +143,14 @@ final class YtDlpFormatLinks
 
             $abr = self::audioBitrate($format);
             if ($abr <= 0) {
-                continue;
+                $formatId = (string) ($format['format_id'] ?? '');
+                if ($formatId === '') {
+                    continue;
+                }
+                $abr = self::fallbackAudioBitrate($format);
+                if ($abr <= 0) {
+                    continue;
+                }
             }
 
             $key = $abr . ':' . $sourceExt;
@@ -152,7 +215,45 @@ final class YtDlpFormatLinks
             return max(1, (int) round(($filesize * 8) / ($duration * 1000)));
         }
 
+        return self::audioQualityBitrate($format);
+    }
+
+    /** @param array<string, mixed> $format */
+    private static function audioQualityBitrate(array $format): int
+    {
+        $quality = strtoupper((string) ($format['audioQuality'] ?? ''));
+        if ($quality === '') {
+            return 0;
+        }
+
+        if (str_contains($quality, 'HIGH')) {
+            return 256;
+        }
+        if (str_contains($quality, 'MEDIUM')) {
+            return 128;
+        }
+        if (str_contains($quality, 'LOW')) {
+            return 48;
+        }
+
         return 0;
+    }
+
+    /** @param array<string, mixed> $format */
+    private static function fallbackAudioBitrate(array $format): int
+    {
+        $fromQuality = self::audioQualityBitrate($format);
+        if ($fromQuality > 0) {
+            return $fromQuality;
+        }
+
+        $formatId = (int) ($format['format_id'] ?? 0);
+        return match ($formatId) {
+            251, 141 => 160,
+            250, 140 => 128,
+            249, 139 => 48,
+            default => 0,
+        };
     }
 
     /** @param array<string, mixed> $format */

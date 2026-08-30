@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Provider\Youtube;
 
 use App\HttpClient;
+use App\YtDlpFormatLinks;
 use App\YoutubeInnertube;
 
 require_once __DIR__ . '/youtubeDlp.php';
@@ -24,10 +25,8 @@ class Extractor
     public function extract(string $url): array
     {
         $links = $this->ytdlp->extract($url);
-        if ($links !== []) {
-            return $links;
-        }
+        $fallback = $this->innertube->extractVideoLinks($url);
 
-        return $this->innertube->extractVideoLinks($url);
+        return YtDlpFormatLinks::mergeDownloadLinks($links, $fallback);
     }
 }

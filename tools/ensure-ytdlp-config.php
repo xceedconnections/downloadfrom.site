@@ -43,6 +43,11 @@ $local['ytdlp']['path'] = $ytdlpBin;
 $local['ytdlp']['node_path'] = $nodePath;
 $local['ytdlp']['enabled'] = !empty($local['ytdlp']['enabled']);
 
+if (!is_executable($nodePath) && !is_file($nodePath)) {
+    fwrite(STDERR, "WARNING: Node.js not found at {$nodePath} — YouTube may return 360p only.\n");
+    fwrite(STDERR, "Install Node on the server: curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt install -y nodejs\n");
+}
+
 $export = var_export($local, true);
 $content = "<?php\n\ndeclare(strict_types=1);\n\n/**\n * Local/server overrides — not committed to git.\n */\nreturn {$export};\n";
 

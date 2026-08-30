@@ -58,9 +58,11 @@ fi
 
 # Verify yt-dlp returns multiple qualities + MP3
 if [ -x "$YTDLP" ]; then
-    php "$ROOT/tools/verify-ytdlp.php" || {
-        echo "[deploy] WARNING: yt-dlp verification failed — check node at /usr/bin/node and storage/logs"
-    }
+    if ! php "$ROOT/tools/verify-ytdlp.php"; then
+        echo "[deploy] ERROR: yt-dlp verification failed."
+        echo "[deploy] Ensure Node.js is installed (node --version) and config.local.php has ytdlp.node_path."
+        echo "[deploy] YouTube downloads will show 360p only until this is fixed."
+    fi
 fi
 
 echo "[deploy] done — code updated; admin settings remain in MySQL"

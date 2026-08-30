@@ -14,9 +14,12 @@ class YtDlpHelper
         null,
         'web',
         'mweb,web',
+        'web_creator,web',
         'tv,web',
+        'tv_embedded,web',
         'ios,web',
         'android,web',
+        'android_vr,web',
     ];
 
     /** @param array<string, mixed> $config */
@@ -100,34 +103,60 @@ class YtDlpHelper
             return self::fetchJsonAttempt($url, $config, $options);
         }
 
-        $best = null;
-        $bestScore = 0;
+        $mergedFormats = [];
+        $baseData = null;
+        $nodePath = self::resolveNodePath($config);
+        if ($nodePath === null) {
+            Logger::error('Node.js not found — YouTube may return 360p only. Set ytdlp.node_path in config.local.php');
+        }
 
         foreach (self::PLAYER_CLIENT_ATTEMPTS as $playerClients) {
             $data = self::fetchJsonAttempt($url, $config, [
                 'player_clients' => $playerClients,
                 'format' => $options['format'] ?? null,
             ]);
-            $score = self::scoreExtract($data);
-            if ($score > $bestScore) {
-                $best = $data;
-                $bestScore = $score;
+            if ($data === null) {
+                continue;
+            }
+
+            if ($baseData === null) {
+                $baseData = $data;
+            }
+
+            foreach ($data['formats'] ?? [] as $format) {
+                if (!is_array($format)) {
+                    continue;
+                }
+
+                $formatId = (string) ($format['format_id'] ?? '');
+                if ($formatId === '') {
+                    continue;
+                }
+
+                if (!isset($mergedFormats[$formatId]) || self::isRicherFormat($format, $mergedFormats[$formatId])) {
+                    $mergedFormats[$formatId] = $format;
+                }
+            }
+
+            if (self::isStrongExtract(array_values($mergedFormats))) {
+                break;
             }
         }
 
-        return $best;
-    }
-
-    /** @param array<string, mixed>|null $data */
-    private static function scoreExtract(?array $data): int
-    {
-        if ($data === null) {
-            return 0;
+        if ($baseData === null || $mergedFormats === []) {
+            return null;
         }
 
-        $formats = $data['formats'] ?? [];
-        if (!is_array($formats) || $formats === []) {
-            return 0;
+        $baseData['formats'] = array_values($mergedFormats);
+
+        return $baseData;
+    }
+
+    /** @param array<int, array<string, mixed>> $formats */
+    private static function isStrongExtract(array $formats): bool
+    {
+        if ($formats === []) {
+            return false;
         }
 
         $videoLinks = YtDlpFormatLinks::buildVideoLinks($formats);
@@ -135,14 +164,31 @@ class YtDlpHelper
 
         $maxHeight = 0;
         foreach ($videoLinks as $link) {
-            $height = (int) preg_replace('/\D+/', '', (string) ($link['quality'] ?? '0'));
-            $maxHeight = max($maxHeight, $height);
+            $maxHeight = max($maxHeight, (int) preg_replace('/\D+/', '', (string) ($link['quality'] ?? '0')));
         }
 
-        return (count($videoLinks) * 100000)
-            + (count($audioLinks) * 10000)
-            + ($maxHeight * 10)
-            + count($formats);
+        return count($videoLinks) >= 6 && count($audioLinks) >= 3 && $maxHeight >= 720;
+    }
+
+    /** @param array<string, mixed> $new @param array<string, mixed> $current */
+    private static function isRicherFormat(array $new, array $current): bool
+    {
+        $newUrl = trim((string) ($new['url'] ?? ''));
+        $curUrl = trim((string) ($current['url'] ?? ''));
+        if ($newUrl !== '' && $curUrl === '') {
+            return true;
+        }
+        if ($newUrl === '' && $curUrl !== '') {
+            return false;
+        }
+
+        $newSize = (int) ($new['filesize'] ?? $new['filesize_approx'] ?? 0);
+        $curSize = (int) ($current['filesize'] ?? $current['filesize_approx'] ?? 0);
+        if ($newSize > 0 && $curSize > 0 && $newSize !== $curSize) {
+            return $newSize > $curSize;
+        }
+
+        return ((int) ($new['tbr'] ?? 0)) > ((int) ($current['tbr'] ?? 0));
     }
 
     /**
@@ -167,6 +213,7 @@ class YtDlpHelper
         $cmd = escapeshellarg($ytdlpPath)
             . ' -j --no-playlist --no-warnings --no-check-certificates'
             . ' --no-cache-dir'
+            . ' --extractor-retries 3'
             . ' --remote-components ejs:github';
 
         if ($playerClients !== null && $playerClients !== '') {

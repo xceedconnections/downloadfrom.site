@@ -9,7 +9,7 @@ use App\Storage\DatabaseConnection;
 
 class VideoService
 {
-    private const CACHE_VERSION = 'v5';
+    private const CACHE_VERSION = 'v6';
 
     private PlatformDetector $detector;
     private Cache $cache;
@@ -177,9 +177,11 @@ class VideoService
         if ($cached !== null) {
             if ($serviceType === 'audio') {
                 $cached['links'] = $this->filterAudioLinks($cached['links'] ?? []);
-                if (($cached['links'] ?? []) === []) {
+                if (($cached['links'] ?? []) === [] || $this->isWeakYoutubeResult($platform, $cached, 'audio')) {
                     $cached = null;
                 }
+            } elseif ($this->isWeakYoutubeVideoResult($platform, $cached)) {
+                $cached = null;
             }
         }
         if ($cached !== null) {
@@ -236,6 +238,17 @@ class VideoService
             $data['links'] = $this->filterAudioLinks($data['links'] ?? []);
         }
 
+        if ($this->isWeakYoutubeResult($platform, $data, $serviceType)) {
+            Logger::error("YouTube weak extraction for {$serviceId}: " . count($data['links'] ?? []) . ' links');
+            $this->analytics->record($platform, false, (microtime(true) - $start) * 1000);
+
+            return [
+                'success' => false,
+                'error' => 'fetch_failed',
+                'message' => 'Unable to retrieve full quality links. Run deploy.sh on the server to update yt-dlp and Node.js, then try again.',
+            ];
+        }
+
         $data['platform'] = $platform;
         $data['service'] = $serviceId;
         $data['service_type'] = $serviceType;
@@ -254,6 +267,48 @@ class VideoService
         $this->analytics->record($platform, true, (microtime(true) - $start) * 1000);
 
         return ['success' => true, 'data' => $data, 'cached' => false];
+    }
+
+    /** @param array<string, mixed> $data */
+    private function isWeakYoutubeResult(string $platform, array $data, string $serviceType): bool
+    {
+        if ($platform !== 'youtube') {
+            return false;
+        }
+
+        $links = array_values(array_filter($data['links'] ?? [], static fn(array $link): bool => !empty($link['download'])));
+        if ($serviceType === 'audio') {
+            return count($links) < 2;
+        }
+
+        return $this->isWeakYoutubeVideoLinks($links);
+    }
+
+    /** @param array<string, mixed> $data */
+    private function isWeakYoutubeVideoResult(string $platform, array $data): bool
+    {
+        if ($platform !== 'youtube') {
+            return false;
+        }
+
+        $links = array_values(array_filter($data['links'] ?? [], static fn(array $link): bool => !empty($link['download'])));
+
+        return $this->isWeakYoutubeVideoLinks($links);
+    }
+
+    /** @param array<int, array<string, mixed>> $links */
+    private function isWeakYoutubeVideoLinks(array $links): bool
+    {
+        if (count($links) < 3) {
+            return true;
+        }
+
+        $maxHeight = 0;
+        foreach ($links as $link) {
+            $maxHeight = max($maxHeight, (int) preg_replace('/\D+/', '', (string) ($link['quality'] ?? '0')));
+        }
+
+        return $maxHeight < 720;
     }
 
     /** @param array<int, array<string, mixed>> $links @return array<int, array<string, mixed>> */
@@ -303,10 +358,10 @@ class VideoService
 
         if (!empty($data['combined']) && !empty($data['normalized_url'])) {
             foreach ([ServiceConfig::SERVICE_ALL, ServiceConfig::SERVICE_VIDEO, ServiceConfig::SERVICE_AUDIO] as $serviceId) {
-                $this->cache->delete($serviceId . '|' . (string) $data['normalized_url']);
+                $this->cache->delete(self::CACHE_VERSION . '|' . $serviceId . '|' . (string) $data['normalized_url']);
             }
         } elseif (!empty($data['service']) && !empty($data['normalized_url'])) {
-            $this->cache->delete((string) $data['service'] . '|' . (string) $data['normalized_url']);
+            $this->cache->delete(self::CACHE_VERSION . '|' . (string) $data['service'] . '|' . (string) $data['normalized_url']);
         }
 
         foreach (['normalized_url', 'original_url'] as $key) {
