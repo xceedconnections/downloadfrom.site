@@ -8,8 +8,15 @@ use PDO;
 
 final class AdsRepository
 {
+    private string $lastError = '';
+
     public function __construct(private PDO $pdo)
     {
+    }
+
+    public function getLastError(): string
+    {
+        return $this->lastError;
     }
 
     public function isEmpty(): bool
@@ -87,6 +94,7 @@ final class AdsRepository
     {
         $id = (string) ($ad['id'] ?? '');
         if ($id === '') {
+            $this->lastError = 'Ad id is required.';
             return false;
         }
 
@@ -94,6 +102,7 @@ final class AdsRepository
         $popup = is_array($ad['popup'] ?? null) ? $ad['popup'] : [];
 
         try {
+            $this->lastError = '';
             $ownsTransaction = !$this->pdo->inTransaction();
             if ($ownsTransaction) {
                 $this->pdo->beginTransaction();
@@ -168,11 +177,27 @@ final class AdsRepository
                 $this->pdo->commit();
             }
             return true;
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            $this->lastError = $e->getMessage();
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
             return false;
+        }
+    }
+
+    public function incrementImpression(string $adId): void
+    {
+        $adId = trim($adId);
+        if ($adId === '') {
+            return;
+        }
+
+        try {
+            $stmt = $this->pdo->prepare('UPDATE ads SET impression_count = impression_count + 1 WHERE id = ?');
+            $stmt->execute([$adId]);
+        } catch (\Throwable) {
+            // Non-critical — do not break page render if counter update fails.
         }
     }
 
@@ -319,6 +344,7 @@ final class AdsRepository
                 'display' => (string) ($row['popup_display'] ?? 'modal'),
                 'content_mode' => (string) ($row['popup_content_mode'] ?? 'html'),
             ],
+            'impression_count' => (int) ($row['impression_count'] ?? 0),
             'updated' => (int) ($row['updated_at'] ?? 0),
         ];
     }

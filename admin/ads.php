@@ -9,6 +9,17 @@ use App\UploadHelper;
 require __DIR__ . '/init.php';
 $auth->requireAuth();
 
+/** Normalize a single POST string (handles duplicate field names from multiple textareas). */
+function adminPostString(string $key): string
+{
+    $value = $_POST[$key] ?? '';
+    if (is_array($value)) {
+        $value = end($value);
+    }
+
+    return trim((string) $value);
+}
+
 $adManager = new AdManager($db, $config['app']['url']);
 $message = '';
 $error = '';
@@ -20,7 +31,9 @@ $action = $_GET['action'] ?? 'list';
 $editId = $_GET['id'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!Security::validateCsrfToken($_POST[$config['security']['csrf_token_name']] ?? null, $config)) {
+    if (empty($_POST) && (int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+        $error = 'Request too large for PHP post_max_size. Shorten the ad script or increase post_max_size in php.ini.';
+    } elseif (!Security::validateCsrfToken($_POST[$config['security']['csrf_token_name']] ?? null, $config)) {
         $error = 'Invalid CSRF token.';
     } elseif (isset($_POST['save_placement_map'])) {
         $map = is_array($_POST['placement_map'] ?? null) ? $_POST['placement_map'] : [];
@@ -56,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($id === '') {
             $id = AdManager::generateId();
         }
-        $existingAd = $adManager->getAd($id);
+        $existingAd = $adManager->getAd($id) ?? [];
         $existingContent = is_array($existingAd['content'] ?? null) ? $existingAd['content'] : [];
         $projectRoot = dirname(__DIR__);
         $imageUrl = trim($_POST['image_url'] ?? '');
@@ -85,11 +98,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $type = $_POST['type'] ?? 'banner';
-        $rawHtml = trim($_POST['content_html'] ?? '');
-        $popupHtml = trim($_POST['popup_html'] ?? '');
-        $popupText = trim($_POST['popup_text'] ?? '');
-        $popupTitle = trim($_POST['popup_title'] ?? '');
-        $popupLink = trim($_POST['popup_link_url'] ?? '');
+        $rawHtml = adminPostString('content_html');
+        $rawTextBody = adminPostString('content_text_body');
+        $popupHtml = adminPostString('popup_html');
+        $popupText = adminPostString('popup_text');
+        $popupTitle = adminPostString('popup_title');
+        $popupLink = adminPostString('popup_link_url');
 
         if ($type === 'popup') {
             $popupDisplay = in_array((string) ($_POST['popup_display'] ?? ''), ['window', 'modal'], true)
@@ -190,7 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $contentWidth = max(1, (int) ($_POST['ad_width'] ?? 728));
             $contentHeight = max(1, (int) ($_POST['ad_height'] ?? 90));
         } elseif ($type === 'text') {
-            $contentHtml = $rawHtml !== '' ? Security::sanitizeAdminHtml($rawHtml) : (string) ($existingContent['html'] ?? '');
+            $contentHtml = $rawTextBody !== '' ? Security::sanitizeAdminHtml($rawTextBody) : (string) ($existingContent['html'] ?? '');
             $contentText = '';
             $contentTitle = trim($_POST['content_title'] ?? '');
             $contentLink = trim($_POST['link_url'] ?? '');
@@ -213,14 +227,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'content_mode' => 'html',
         ];
 
+        $existingPlacements = is_array($existingAd['placements'] ?? null) ? $existingAd['placements'] : [];
+        $existingPages = is_array($existingAd['pages'] ?? null) && ($existingAd['pages'] ?? []) !== []
+            ? $existingAd['pages']
+            : ['all'];
+
         $ad = [
             'id' => $id,
             'name' => trim($_POST['name'] ?? 'Untitled Ad'),
             'enabled' => isset($_POST['ad_enabled']),
-            'source' => 'own',
+            'source' => (string) ($existingAd['source'] ?? 'own'),
             'type' => $type === 'network' ? 'html' : $type,
-            'placements' => [],
-            'pages' => ['all'],
+            'network' => (string) ($existingAd['network'] ?? 'custom'),
+            'placements' => $existingPlacements,
+            'pages' => $existingPages,
             'priority' => (int) ($_POST['priority'] ?? 0),
             'content' => [
                 'title' => $contentTitle,
@@ -247,10 +267,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($error === '' && $adManager->saveAd($ad)) {
             $message = 'Ad saved successfully.';
-            $action = 'list';
+            $action = 'edit';
             $tab = 'ads';
-        } else {
-            $error = 'Failed to save ad.';
+            $editId = $id;
+        } elseif ($error === '') {
+            $saveErr = $adManager->getLastSaveError();
+            $error = 'Failed to save ad.' . ($saveErr !== '' ? ' ' . $saveErr : '');
+            $action = 'edit';
+            $tab = 'ads';
+            $editId = $id;
         }
     }
 }
@@ -369,7 +394,7 @@ $mediaPreview = static function (string $path): string {
             <legend>Text content</legend>
             <label>Title <input type="text" name="content_title" value="<?= Security::escape($c['title'] ?? '') ?>"></label>
             <label>Body
-                <textarea name="content_html" class="wysiwyg" id="ad-content-text" rows="8"><?= Security::escape($c['html'] ?? ($c['text'] ?? '')) ?></textarea>
+                <textarea name="content_text_body" class="wysiwyg" id="ad-content-text" rows="8"><?= Security::escape($c['html'] ?? ($c['text'] ?? '')) ?></textarea>
             </label>
         </fieldset>
 
@@ -510,6 +535,13 @@ $mediaPreview = static function (string $path): string {
         if (show) show.style.display = 'block';
         if (htmlField) htmlField.disabled = (t === 'text' || t === 'popup');
         if (textField) textField.disabled = (t !== 'text');
+        if (t === 'text') {
+            if (textField && window.AdminWysiwyg) {
+                AdminWysiwyg.initElement(textField);
+            }
+        } else if (textField && window.AdminWysiwyg) {
+            AdminWysiwyg.removeIn(textField.closest('fieldset') || document);
+        }
         if (t === 'popup') {
             document.querySelectorAll('.ad-fields-popup').forEach(function (el) { el.style.display = 'block'; });
             togglePopupDisplay();
@@ -562,7 +594,7 @@ $mediaPreview = static function (string $path): string {
     <?php else: ?>
     <table class="admin-table">
         <thead>
-            <tr><th>Name</th><th>Type</th><th>Used in zones</th><th>Status</th><th>Actions</th></tr>
+            <tr><th>Impressions</th><th>Name</th><th>Type</th><th>Used in zones</th><th>Status</th><th>Actions</th></tr>
         </thead>
         <tbody>
         <?php foreach ($adManager->allAds() as $ad):
@@ -586,6 +618,7 @@ $mediaPreview = static function (string $path): string {
             }
         ?>
         <tr>
+            <td><?= number_format((int) ($ad['impression_count'] ?? 0)) ?></td>
             <td><?= Security::escape($ad['name'] ?? '') ?></td>
             <td><?= Security::escape(AdManager::AD_TYPES[$ad['type'] ?? ''] ?? $ad['type'] ?? '') ?></td>
             <td><?= Security::escape($usedIn !== [] ? implode(', ', $usedIn) : '— assign in Placement Map') ?></td>

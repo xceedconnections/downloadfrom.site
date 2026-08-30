@@ -18,6 +18,9 @@ class AdManager
     private array $data;
     private string $baseUrl;
     private bool $relayScripts = true;
+    /** @var array<string, true> */
+    private array $impressionRecorded = [];
+    private string $lastSaveError = '';
 
     public const PLACEMENTS = [
         'header_banner' => 'Header banner (all pages)',
@@ -226,12 +229,19 @@ class AdManager
 
     public function saveAd(array $ad): bool
     {
+        $this->lastSaveError = '';
         $ad['updated'] = time();
         if (!$this->repo->upsertAd($ad)) {
+            $this->lastSaveError = $this->repo->getLastError();
             return false;
         }
         $this->reloadData();
         return true;
+    }
+
+    public function getLastSaveError(): string
+    {
+        return $this->lastSaveError;
     }
 
     public function deleteAd(string $id): bool
@@ -631,10 +641,25 @@ class AdManager
 
         $html = '';
         foreach ($ads as $ad) {
-            $html .= $this->renderAd($ad, $placement);
+            $chunk = trim($this->renderAd($ad, $placement));
+            if ($chunk !== '') {
+                $this->recordImpression((string) ($ad['id'] ?? ''));
+            }
+            $html .= $chunk;
         }
 
         return $html;
+    }
+
+    private function recordImpression(string $adId): void
+    {
+        $adId = trim($adId);
+        if ($adId === '' || isset($this->impressionRecorded[$adId])) {
+            return;
+        }
+
+        $this->impressionRecorded[$adId] = true;
+        $this->repo->incrementImpression($adId);
     }
 
     public function renderOwnedSlotByKey(string $key, string $pageType = 'all', ?string $serviceId = null, ?string $providerId = null): string
@@ -687,6 +712,7 @@ class AdManager
             if ($chunk === '' || !$this->adChunkHasVisibleContent($chunk)) {
                 continue;
             }
+            $this->recordImpression((string) ($ad['id'] ?? ''));
             $html .= $chunk;
         }
 
@@ -984,6 +1010,7 @@ class AdManager
                 if ($url === '' || !preg_match('#^https?://#i', $url)) {
                     continue;
                 }
+                $this->recordImpression((string) ($ad['id'] ?? ''));
                 $items[] = array_merge($base, [
                     'style' => 'window',
                     'url' => $url,
@@ -996,6 +1023,7 @@ class AdManager
                 continue;
             }
 
+            $this->recordImpression((string) ($ad['id'] ?? ''));
             $link = trim((string) ($content['link_url'] ?? ''));
             $mode = (string) ($popup['content_mode'] ?? 'html');
             $items[] = array_merge($base, [
