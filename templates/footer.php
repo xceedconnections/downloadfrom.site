@@ -125,10 +125,14 @@
             || trim((string) ($modalHtmlByService['video'] ?? '')) !== ''
             || trim((string) ($modalHtmlByService['audio'] ?? '')) !== '';
         $hasOpenerLinks = false;
+        $allOpenerLinks = [];
         foreach ($openerLinksByService as $links) {
-            if (!empty($links)) {
+            foreach ($links as $link) {
+                if ($link === '' || in_array($link, $allOpenerLinks, true)) {
+                    continue;
+                }
+                $allOpenerLinks[] = $link;
                 $hasOpenerLinks = true;
-                break;
             }
         }
         $downloadCfg = [
@@ -137,6 +141,7 @@
             'modalHtmlByService' => $modalHtmlByService,
             'openerLinks' => $openerLinksByService['default'] ?? [],
             'openerLinksByService' => $openerLinksByService,
+            'openerLinksAll' => $allOpenerLinks,
             'useGate' => $hasDownloadModalAds || $hasOpenerLinks || $dlCountdown > 0,
         ];
     ?>

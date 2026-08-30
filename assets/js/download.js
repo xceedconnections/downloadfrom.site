@@ -22,13 +22,30 @@
 
     function resolveOpenerLinks(serviceType) {
         var key = (serviceType || '').toLowerCase();
-        if (key && Array.isArray(openerLinksByService[key]) && openerLinksByService[key].length > 0) {
-            return openerLinksByService[key];
+        var links = [];
+        var seen = {};
+
+        function addList(list) {
+            if (!Array.isArray(list)) {
+                return;
+            }
+            list.forEach(function (link) {
+                var normalized = String(link || '').trim();
+                if (normalized && !seen[normalized]) {
+                    seen[normalized] = true;
+                    links.push(normalized);
+                }
+            });
         }
-        if (Array.isArray(defaultOpenerLinks) && defaultOpenerLinks.length > 0) {
-            return defaultOpenerLinks;
+
+        if (key) {
+            addList(openerLinksByService[key]);
         }
-        return Array.isArray(openerLinksByService.default) ? openerLinksByService.default : [];
+        addList(defaultOpenerLinks);
+        addList(openerLinksByService.default);
+        addList(cfg.openerLinksAll);
+
+        return links;
     }
 
     function hasAnyModalAds() {
@@ -41,6 +58,9 @@
     }
 
     function hasAnyOpenerLinks() {
+        if (Array.isArray(cfg.openerLinksAll) && cfg.openerLinksAll.length > 0) {
+            return true;
+        }
         if (Array.isArray(defaultOpenerLinks) && defaultOpenerLinks.length > 0) {
             return true;
         }
@@ -58,7 +78,13 @@
     function openExternalUrl(url) {
         var trimmed = String(url || '').trim();
         if (!isExternalUrl(trimmed)) {
-            return;
+            return false;
+        }
+
+        var opened = window.open(trimmed, '_blank', 'noopener,noreferrer');
+        if (opened) {
+            opened.opener = null;
+            return true;
         }
 
         var anchor = document.createElement('a');
@@ -68,6 +94,7 @@
         document.body.appendChild(anchor);
         anchor.click();
         anchor.remove();
+        return true;
     }
 
     function startDownload(url, target) {
@@ -163,7 +190,8 @@
         }
 
         function triggerDownload() {
-            openOpenerLinks(serviceType);
+            var openerUrls = resolveOpenerLinks(serviceType);
+            openerUrls.forEach(openExternalUrl);
             closeModal();
             startDownload(url, target);
         }

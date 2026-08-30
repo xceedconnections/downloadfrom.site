@@ -372,6 +372,10 @@ $mediaPreview = static function (string $path): string {
                 <textarea name="content_html" id="ad-content-html" rows="12" class="ad-code-textarea" placeholder="Paste Google AdSense or any ad network HTML/JavaScript here"><?= Security::escape($c['html'] ?? ($c['network_code'] ?? '')) ?></textarea>
                 <span class="admin-field-hint">Rendered exactly as HTML on the site — use this for AdSense, Media.net, etc.</span>
             </label>
+            <label>Click URL (for Download link opener zone)
+                <input type="url" name="link_url" value="<?= Security::escape($c['link_url'] ?? '') ?>" placeholder="https://example.com/offer">
+            </label>
+            <p class="admin-field-hint">Required when this ad is assigned to <strong>Download link opener</strong> — not used for normal HTML display zones.</p>
         </fieldset>
 
         <fieldset class="admin-fieldset ad-fields-banner ad-fields-type">

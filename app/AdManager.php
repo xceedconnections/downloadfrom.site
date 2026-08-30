@@ -678,11 +678,55 @@ class AdManager
         return $this->getForPlacement('download_modal', $pageType, $serviceId, $providerId);
     }
 
-    /** @return string[] HTTPS URLs from assigned link/banner ads (first match wins in JS). */
+    /** @return string[] HTTPS URLs from assigned link/banner ads (first map tier with a valid URL wins). */
     public function resolvePlacementLinks(string $placement, string $pageType = 'all', ?string $serviceId = null, ?string $providerId = null): array
     {
+        foreach (self::placementMapLookupKeys($placement, $serviceId, $providerId, $pageType) as $mapKey) {
+            $urls = $this->extractLinksFromMapKey($mapKey);
+            if ($urls !== []) {
+                return $urls;
+            }
+        }
+
         $urls = [];
-        foreach ($this->getForPlacement($placement, $pageType, $serviceId, $providerId) as $ad) {
+        foreach ($this->allAds() as $ad) {
+            if (empty($ad['enabled'])) {
+                continue;
+            }
+            $placements = $ad['placements'] ?? [];
+            $matched = false;
+            foreach (self::placementAliases($placement) as $alias) {
+                if (in_array($alias, $placements, true)) {
+                    $matched = true;
+                    break;
+                }
+            }
+            if (!$matched) {
+                continue;
+            }
+            $pages = $ad['pages'] ?? ['all'];
+            if (!$this->pageMatches($pages, $pageType, $serviceId)) {
+                continue;
+            }
+            $url = self::extractAdLinkUrl($ad);
+            if ($url !== null && !in_array($url, $urls, true)) {
+                $urls[] = $url;
+            }
+        }
+
+        return $urls;
+    }
+
+    /** @return string[] */
+    private function extractLinksFromMapKey(string $mapKey): array
+    {
+        $adIds = $this->getPlacementMap()[$mapKey] ?? [];
+        if ($adIds === []) {
+            return [];
+        }
+
+        $urls = [];
+        foreach ($this->resolveEnabledAds($adIds) as $ad) {
             $url = self::extractAdLinkUrl($ad);
             if ($url !== null && !in_array($url, $urls, true)) {
                 $urls[] = $url;
