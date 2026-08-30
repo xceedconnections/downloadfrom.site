@@ -4,9 +4,7 @@
     var cfg = window.__DOWNLOAD_CONFIG__ || {};
     var countdownSec = Math.max(0, parseInt(cfg.countdown, 10) || 0);
     var modalHtmlByService = cfg.modalHtmlByService || {};
-    var openerPool = Array.isArray(cfg.openerPool) ? cfg.openerPool : [];
-    var openerMode = cfg.openerMode === 'multiple' ? 'multiple' : 'random';
-    var openerCount = Math.max(1, Math.min(3, parseInt(cfg.openerCount, 10) || 1));
+    var openerContainers = Array.isArray(cfg.openerContainers) ? cfg.openerContainers : [];
     var defaultModalHtml = cfg.modalHtml || modalHtmlByService.default || '';
     var downloadBtnLabel = 'Download Video Now';
 
@@ -21,17 +19,35 @@
         return modalHtmlByService.default || '';
     }
 
+    function isValidUrl(url) {
+        return /^https?:\/\//i.test(String(url || '').trim());
+    }
+
     function pickOpenerLinks() {
-        var pool = openerPool.filter(function (url) {
-            return /^https?:\/\//i.test(String(url || '').trim());
+        var picked = [];
+        var seen = {};
+
+        openerContainers.forEach(function (container) {
+            var links = (container.links || []).filter(isValidUrl);
+            if (links.length === 0) {
+                return;
+            }
+
+            var mode = container.mode === 'fixed' ? 'fixed' : 'random';
+            var batch = mode === 'fixed'
+                ? links
+                : [links[Math.floor(Math.random() * links.length)]];
+
+            batch.forEach(function (url) {
+                var trimmed = String(url).trim();
+                if (!seen[trimmed]) {
+                    seen[trimmed] = true;
+                    picked.push(trimmed);
+                }
+            });
         });
-        if (pool.length === 0) {
-            return [];
-        }
-        if (openerMode === 'random') {
-            return [pool[Math.floor(Math.random() * pool.length)]];
-        }
-        return pool.slice(0, Math.min(openerCount, pool.length));
+
+        return picked;
     }
 
     function hasAnyModalAds() {
@@ -44,14 +60,16 @@
     }
 
     function hasAnyOpenerLinks() {
-        return openerPool.length > 0;
+        return openerContainers.some(function (c) {
+            return Array.isArray(c.links) && c.links.some(isValidUrl);
+        });
     }
 
     var useGate = cfg.useGate !== false && (hasAnyModalAds() || hasAnyOpenerLinks() || countdownSec > 0);
 
     function openExternalUrl(url) {
         var trimmed = String(url || '').trim();
-        if (!/^https?:\/\//i.test(trimmed)) {
+        if (!isValidUrl(trimmed)) {
             return;
         }
         window.open(trimmed, '_blank', 'noopener,noreferrer');

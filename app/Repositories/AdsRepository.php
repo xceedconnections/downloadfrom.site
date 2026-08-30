@@ -31,13 +31,14 @@ final class AdsRepository
     {
         $doc = $defaults;
 
-        $stmt = $this->pdo->query('SELECT enabled, download_modal_countdown, download_opener_mode, download_opener_count FROM ad_settings WHERE id = 1 LIMIT 1');
+        $stmt = $this->pdo->query('SELECT enabled, download_modal_countdown, download_opener_mode, download_opener_count, download_opener_containers FROM ad_settings WHERE id = 1 LIMIT 1');
         $row = $stmt ? $stmt->fetch() : false;
         if ($row) {
             $doc['enabled'] = (bool) ($row['enabled'] ?? false);
             $doc['download_modal_countdown'] = (int) ($row['download_modal_countdown'] ?? 5);
             $doc['download_opener_mode'] = self::normalizeOpenerMode((string) ($row['download_opener_mode'] ?? 'random'));
             $doc['download_opener_count'] = self::normalizeOpenerCount((int) ($row['download_opener_count'] ?? 1));
+            $doc['download_opener_containers'] = self::decodeOpenerContainers($row['download_opener_containers'] ?? null);
         }
 
         $doc['placement_map'] = $this->loadPlacementMap();
@@ -64,13 +65,14 @@ final class AdsRepository
             $this->pdo->exec('DELETE FROM ads');
             $this->pdo->exec('DELETE FROM ad_settings');
             $stmt = $this->pdo->prepare(
-                'INSERT INTO ad_settings (id, enabled, download_modal_countdown, download_opener_mode, download_opener_count) VALUES (1, ?, ?, ?, ?)'
+                'INSERT INTO ad_settings (id, enabled, download_modal_countdown, download_opener_mode, download_opener_count, download_opener_containers) VALUES (1, ?, ?, ?, ?, ?)'
             );
             $stmt->execute([
                 !empty($merged['enabled']) ? 1 : 0,
                 max(0, min(30, (int) ($merged['download_modal_countdown'] ?? 5))),
                 self::normalizeOpenerMode((string) ($merged['download_opener_mode'] ?? 'random')),
                 self::normalizeOpenerCount((int) ($merged['download_opener_count'] ?? 1)),
+                self::encodeOpenerContainers($merged['download_opener_containers'] ?? []),
             ]);
 
             $this->savePlacementMap($merged['placement_map'] ?? []);
@@ -379,17 +381,18 @@ final class AdsRepository
         return $max > 0 ? $max : time();
     }
 
-    public function updateAdSettings(bool $enabled, int $countdown, string $openerMode, int $openerCount): bool
+    public function updateAdSettings(bool $enabled, int $countdown, string $openerMode, int $openerCount, array $openerContainers = []): bool
     {
         try {
             $stmt = $this->pdo->prepare(
-                'INSERT INTO ad_settings (id, enabled, download_modal_countdown, download_opener_mode, download_opener_count)
-                 VALUES (1, ?, ?, ?, ?)
+                'INSERT INTO ad_settings (id, enabled, download_modal_countdown, download_opener_mode, download_opener_count, download_opener_containers)
+                 VALUES (1, ?, ?, ?, ?, ?)
                  ON DUPLICATE KEY UPDATE
                     enabled = VALUES(enabled),
                     download_modal_countdown = VALUES(download_modal_countdown),
                     download_opener_mode = VALUES(download_opener_mode),
-                    download_opener_count = VALUES(download_opener_count)'
+                    download_opener_count = VALUES(download_opener_count),
+                    download_opener_containers = VALUES(download_opener_containers)'
             );
 
             return $stmt->execute([
@@ -397,11 +400,113 @@ final class AdsRepository
                 max(0, min(30, $countdown)),
                 self::normalizeOpenerMode($openerMode),
                 self::normalizeOpenerCount($openerCount),
+                self::encodeOpenerContainers($openerContainers),
             ]);
         } catch (\Throwable $e) {
             $this->lastError = $e->getMessage();
             return false;
         }
+    }
+
+    /** @return array<int, array{id: string, name: string, enabled: bool, mode: string, links: string[]}> */
+    public function loadOpenerContainers(): array
+    {
+        $stmt = $this->pdo->query('SELECT download_opener_containers FROM ad_settings WHERE id = 1 LIMIT 1');
+        $row = $stmt ? $stmt->fetch() : false;
+
+        return self::decodeOpenerContainers($row['download_opener_containers'] ?? null);
+    }
+
+    /** @param array<int, array<string, mixed>> $containers */
+    public function saveOpenerContainers(array $containers): bool
+    {
+        try {
+            $stmt = $this->pdo->prepare(
+                'INSERT INTO ad_settings (id, enabled, download_modal_countdown, download_opener_mode, download_opener_count, download_opener_containers)
+                 VALUES (1, 1, 5, \'random\', 1, ?)
+                 ON DUPLICATE KEY UPDATE download_opener_containers = VALUES(download_opener_containers)'
+            );
+
+            return $stmt->execute([self::encodeOpenerContainers($containers)]);
+        } catch (\Throwable $e) {
+            $this->lastError = $e->getMessage();
+            return false;
+        }
+    }
+
+    /** @return array<int, array{id: string, name: string, enabled: bool, mode: string, links: string[]}> */
+    public static function decodeOpenerContainers(mixed $raw): array
+    {
+        if (!is_string($raw) || trim($raw) === '') {
+            return [];
+        }
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $containers = [];
+        foreach ($decoded as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $links = [];
+            foreach ($item['links'] ?? [] as $link) {
+                $link = trim((string) $link);
+                if ($link !== '' && !in_array($link, $links, true)) {
+                    $links[] = $link;
+                }
+            }
+            $id = trim((string) ($item['id'] ?? ''));
+            if ($id === '' || $links === []) {
+                continue;
+            }
+            $containers[] = [
+                'id' => $id,
+                'name' => trim((string) ($item['name'] ?? 'Opener')) ?: 'Opener',
+                'enabled' => !isset($item['enabled']) || !empty($item['enabled']),
+                'mode' => self::normalizeContainerMode((string) ($item['mode'] ?? 'random')),
+                'links' => $links,
+            ];
+        }
+
+        return $containers;
+    }
+
+    /** @param array<int, array<string, mixed>> $containers */
+    public static function encodeOpenerContainers(array $containers): string
+    {
+        $clean = [];
+        foreach ($containers as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $links = [];
+            foreach ($item['links'] ?? [] as $link) {
+                $link = trim((string) $link);
+                if ($link !== '' && !in_array($link, $links, true)) {
+                    $links[] = $link;
+                }
+            }
+            $id = trim((string) ($item['id'] ?? ''));
+            if ($id === '' || $links === []) {
+                continue;
+            }
+            $clean[] = [
+                'id' => $id,
+                'name' => trim((string) ($item['name'] ?? 'Opener')) ?: 'Opener',
+                'enabled' => !isset($item['enabled']) || !empty($item['enabled']),
+                'mode' => self::normalizeContainerMode((string) ($item['mode'] ?? 'random')),
+                'links' => $links,
+            ];
+        }
+
+        return json_encode($clean, JSON_UNESCAPED_UNICODE) ?: '[]';
+    }
+
+    public static function normalizeContainerMode(string $mode): string
+    {
+        return $mode === 'fixed' ? 'fixed' : 'random';
     }
 
     public static function normalizeOpenerMode(string $mode): string

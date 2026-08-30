@@ -165,7 +165,6 @@ $renderResultWireframe = static function (?string $serviceId, string $linksLabel
     </div>
     <?php $renderZonePicker('result_bottom', '4', 'Result bottom', '', '', $serviceId, $providerId, false, $pageScope); ?>
     <?php $renderZonePicker('download_modal', 'Modal', 'Download modal', 'wf-ad-modal', 'Side ad when user clicks Download', $serviceId, $providerId, false, $pageScope); ?>
-    <?php $renderZonePicker('download_link_opener', 'Opener', 'Download link opener', 'wf-ad-modal', 'Assign Download Openers tab links here. Opens on Download Video Now.', $serviceId, $providerId, false, $pageScope); ?>
     <?php $renderZonePicker('footer_banner', '5', 'Footer banner', 'wf-ad-sm', '', $serviceId, $providerId, false, $pageScope); ?>
     <?php $renderZonePicker('popup', 'Popup', 'Timed popup', 'wf-ad-popup', 'Full-screen overlay after delay', $serviceId, $providerId, true, $pageScope); ?>
     <?php

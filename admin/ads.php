@@ -47,80 +47,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $error = 'Failed to save placement map.';
         }
-    } elseif (isset($_POST['save_opener_settings'])) {
-        $mode = (string) ($_POST['download_opener_mode'] ?? 'random');
-        $count = (int) ($_POST['download_opener_count'] ?? 1);
-        if ($adManager->saveOpenerSettings($mode, $count)) {
-            $message = 'Download opener settings saved.';
+    } elseif (isset($_POST['save_opener_container'])) {
+        $rawLinks = (string) ($_POST['container_links'] ?? '');
+        $links = preg_split('/\R+/', $rawLinks) ?: [];
+        $links = array_values(array_filter(array_map('trim', $links), static fn(string $l): bool => $l !== ''));
+        $container = [
+            'id' => trim($_POST['container_id'] ?? ''),
+            'name' => trim($_POST['container_name'] ?? 'Opener'),
+            'enabled' => isset($_POST['container_enabled']),
+            'mode' => (string) ($_POST['container_mode'] ?? 'random'),
+            'links' => $links,
+        ];
+        if ($adManager->saveOpenerContainer($container)) {
+            $message = isset($_POST['container_id']) && trim($_POST['container_id']) !== ''
+                ? 'Container saved.'
+                : 'Container added.';
             $tab = 'openers';
         } else {
-            $error = 'Failed to save opener settings.';
+            $error = 'Could not save container.' . ($adManager->getLastSaveError() !== '' ? ' ' . $adManager->getLastSaveError() : '');
             $tab = 'openers';
         }
-    } elseif (isset($_POST['save_opener_ad'])) {
-        $id = trim($_POST['opener_ad_id'] ?? '');
-        if ($id === '') {
-            $id = AdManager::generateId();
-        }
-        $existingAd = $adManager->getAd($id) ?? [];
-        $existingContent = is_array($existingAd['content'] ?? null) ? $existingAd['content'] : [];
-        $url = trim($_POST['opener_url'] ?? '');
-        if ($url === '') {
-            $error = 'Opener URL is required.';
-            $tab = 'openers';
+    } elseif (isset($_POST['delete_opener_container'])) {
+        $id = trim($_POST['container_id'] ?? '');
+        if ($id !== '' && $adManager->deleteOpenerContainer($id)) {
+            $message = 'Container deleted.';
         } else {
-            $ad = [
-                'id' => $id,
-                'name' => trim($_POST['opener_name'] ?? 'Opener link'),
-                'enabled' => isset($_POST['opener_enabled']),
-                'source' => 'own',
-                'type' => 'download_opener',
-                'network' => 'custom',
-                'placements' => is_array($existingAd['placements'] ?? null) ? $existingAd['placements'] : [],
-                'pages' => is_array($existingAd['pages'] ?? null) && ($existingAd['pages'] ?? []) !== [] ? $existingAd['pages'] : ['all'],
-                'priority' => (int) ($_POST['opener_priority'] ?? 0),
-                'content' => [
-                    'title' => '',
-                    'text' => '',
-                    'html' => '',
-                    'image_url' => '',
-                    'video_url' => '',
-                    'link_url' => $url,
-                    'alt' => '',
-                    'width' => 0,
-                    'height' => 0,
-                ],
-                'popup' => is_array($existingAd['popup'] ?? null) ? $existingAd['popup'] : [
-                    'delay_seconds' => 3,
-                    'show_once_per_session' => false,
-                    'closable' => true,
-                    'display' => 'modal',
-                    'content_mode' => 'html',
-                ],
-                'updated' => time(),
-            ];
-            if ($adManager->saveAd($ad)) {
-                $message = 'Opener link saved. Assign it in Placement Map → Opener zone.';
-                $tab = 'openers';
-            } else {
-                $error = 'Failed to save opener link.' . ($adManager->getLastSaveError() !== '' ? ' ' . $adManager->getLastSaveError() : '');
-                $tab = 'openers';
-            }
-        }
-    } elseif (isset($_POST['delete_opener_ad'])) {
-        $id = trim($_POST['opener_ad_id'] ?? '');
-        if ($id !== '' && $adManager->deleteAd($id)) {
-            $map = $adManager->getPlacementMap();
-            foreach ($map as $place => $mappedIds) {
-                $filtered = array_values(array_filter($mappedIds, static fn(string $mappedId): bool => $mappedId !== $id));
-                if ($filtered === []) {
-                    unset($map[$place]);
-                } else {
-                    $map[$place] = $filtered;
-                }
-            }
-            $adManager->savePlacementMap($map);
-            $message = 'Opener link deleted.';
+            $error = 'Could not delete container.';
         }
         $tab = 'openers';
     } elseif (isset($_POST['delete_ad'])) {

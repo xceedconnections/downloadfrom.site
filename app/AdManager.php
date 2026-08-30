@@ -178,6 +178,39 @@ class AdManager
     private function reloadData(): void
     {
         $this->data = $this->repo->loadDocument($this->defaults());
+        $this->maybeMigrateLegacyOpeners();
+    }
+
+    private function maybeMigrateLegacyOpeners(): void
+    {
+        if (($this->data['download_opener_containers'] ?? []) !== []) {
+            return;
+        }
+
+        $links = [];
+        foreach ($this->resolvePlacementLinks('download_link_opener', 'result', null, null) as $url) {
+            if (!in_array($url, $links, true)) {
+                $links[] = $url;
+            }
+        }
+        foreach ($this->allOpenerAds() as $ad) {
+            $url = self::extractAdLinkUrl($ad);
+            if ($url !== null && !in_array($url, $links, true)) {
+                $links[] = $url;
+            }
+        }
+        if ($links === []) {
+            return;
+        }
+
+        $this->data['download_opener_containers'] = [[
+            'id' => self::generateId(),
+            'name' => 'Imported openers',
+            'enabled' => true,
+            'mode' => 'random',
+            'links' => $links,
+        ]];
+        $this->repo->saveOpenerContainers($this->data['download_opener_containers']);
     }
 
     public function isEnabled(): bool
@@ -326,7 +359,8 @@ class AdManager
             !empty($this->data['enabled']),
             (int) ($this->data['download_modal_countdown'] ?? 5),
             (string) $this->data['download_opener_mode'],
-            (int) $this->data['download_opener_count']
+            (int) $this->data['download_opener_count'],
+            $this->getOpenerContainers()
         )) {
             return false;
         }
@@ -351,10 +385,129 @@ class AdManager
         }));
     }
 
+    /** @return array<int, array{id: string, name: string, enabled: bool, mode: string, links: string[]}> */
+    public function getOpenerContainers(): array
+    {
+        $containers = is_array($this->data['download_opener_containers'] ?? null)
+            ? $this->data['download_opener_containers']
+            : [];
+
+        return $containers;
+    }
+
+    /** @param array{id?: string, name: string, enabled: bool, mode: string, links: string[]} $container */
+    public function saveOpenerContainer(array $container): bool
+    {
+        $containers = $this->getOpenerContainers();
+        $id = trim((string) ($container['id'] ?? ''));
+        if ($id === '') {
+            $id = self::generateId();
+        }
+
+        $normalized = [
+            'id' => $id,
+            'name' => trim((string) ($container['name'] ?? 'Opener')) ?: 'Opener',
+            'enabled' => !empty($container['enabled']),
+            'mode' => AdsRepository::normalizeContainerMode((string) ($container['mode'] ?? 'random')),
+            'links' => array_values(array_filter(array_map(
+                static fn($link): string => trim((string) $link),
+                is_array($container['links'] ?? null) ? $container['links'] : []
+            ), static fn(string $link): bool => $link !== '')),
+        ];
+
+        if ($normalized['links'] === []) {
+            $this->lastSaveError = 'Add at least one valid URL.';
+            return false;
+        }
+
+        $replaced = false;
+        foreach ($containers as $i => $existing) {
+            if (($existing['id'] ?? '') === $id) {
+                $containers[$i] = $normalized;
+                $replaced = true;
+                break;
+            }
+        }
+        if (!$replaced) {
+            $containers[] = $normalized;
+        }
+
+        if (!$this->repo->saveOpenerContainers($containers)) {
+            $this->lastSaveError = $this->repo->getLastError();
+            return false;
+        }
+
+        $this->reloadData();
+        return true;
+    }
+
+    public function deleteOpenerContainer(string $id): bool
+    {
+        $id = trim($id);
+        if ($id === '') {
+            return false;
+        }
+
+        $containers = array_values(array_filter(
+            $this->getOpenerContainers(),
+            static fn(array $c): bool => ($c['id'] ?? '') !== $id
+        ));
+
+        if (!$this->repo->saveOpenerContainers($containers)) {
+            $this->lastSaveError = $this->repo->getLastError();
+            return false;
+        }
+
+        $this->reloadData();
+        return true;
+    }
+
+    /** @return array<int, array{mode: string, links: string[]}> */
+    public function buildDownloadOpenerClientConfig(): array
+    {
+        $out = [];
+        foreach ($this->getOpenerContainers() as $container) {
+            if (empty($container['enabled'])) {
+                continue;
+            }
+            $links = [];
+            foreach ($container['links'] ?? [] as $url) {
+                $normalized = self::normalizeExternalUrl((string) $url);
+                if ($normalized !== null && !in_array($normalized, $links, true)) {
+                    $links[] = $normalized;
+                }
+            }
+            if ($links === []) {
+                continue;
+            }
+            $out[] = [
+                'mode' => AdsRepository::normalizeContainerMode((string) ($container['mode'] ?? 'random')),
+                'links' => $links,
+            ];
+        }
+
+        return $out;
+    }
+
+    public function hasDownloadOpenerContainers(): bool
+    {
+        return $this->buildDownloadOpenerClientConfig() !== [];
+    }
+
     /** @return string[] */
     public function resolveDownloadOpenerPool(string $pageType = 'result', ?string $serviceId = null, ?string $providerId = null): array
     {
-        return $this->resolvePlacementLinks('download_link_opener', $pageType, $serviceId, $providerId);
+        unset($pageType, $serviceId, $providerId);
+        $urls = [];
+        foreach ($this->buildDownloadOpenerClientConfig() as $container) {
+            foreach ($container['links'] as $url) {
+                if (!in_array($url, $urls, true)) {
+                    $urls[] = $url;
+                }
+            }
+        }
+
+        return $urls;
     }
 
     /** @return array<int, array> */
@@ -1340,6 +1493,7 @@ class AdManager
             'download_modal_countdown' => 5,
             'download_opener_mode' => 'random',
             'download_opener_count' => 1,
+            'download_opener_containers' => [],
             'updated' => time(),
             'placement_map' => [],
             'ads' => [],

@@ -79,6 +79,7 @@
         $providerIdForAds = ($adProviderId ?? '') !== '' ? $adProviderId : null;
         $modalHtmlByService = [];
         $openerPool = [];
+        $openerContainers = [];
         if (isset($adManager)) {
             $isCombinedResult = !empty($isCombined ?? false);
             if ($isCombinedResult && $providerIdForAds !== null) {
@@ -101,25 +102,23 @@
                 $adServiceId ?? null,
                 $providerIdForAds
             );
+            $openerContainers = $adManager->buildDownloadOpenerClientConfig();
             $openerPool = $adManager->resolveDownloadOpenerPool(
                 'result',
                 $adServiceId ?? null,
                 $providerIdForAds
             );
         }
-        $openerSettings = isset($adManager) ? $adManager->getDownloadOpenerSettings() : ['mode' => 'random', 'count' => 1];
         $downloadModalHtml = trim((string) ($modalHtmlByService['default'] ?? ''));
         $hasDownloadModalAds = $downloadModalHtml !== ''
             || trim((string) ($modalHtmlByService['video'] ?? '')) !== ''
             || trim((string) ($modalHtmlByService['audio'] ?? '')) !== '';
-        $hasOpenerLinks = $openerPool !== [];
+        $hasOpenerLinks = $openerContainers !== [];
         $downloadCfg = [
             'countdown' => $dlCountdown,
             'modalHtml' => $downloadModalHtml,
             'modalHtmlByService' => $modalHtmlByService,
-            'openerPool' => $openerPool,
-            'openerMode' => $openerSettings['mode'],
-            'openerCount' => $openerSettings['count'],
+            'openerContainers' => $openerContainers,
             'useGate' => $hasDownloadModalAds || $hasOpenerLinks || $dlCountdown > 0,
         ];
     ?>
