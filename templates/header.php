@@ -96,6 +96,8 @@ $siteName = $settings ? (string) ($settings->get('site_name') ?: $config['app'][
 
 <body>
 
+    <?php App\CustomCodes::renderBodyEnd($settings ?? null, $baseUrl, (bool) ($config['ads']['relay_scripts'] ?? false)); ?>
+
     <?php
     $blockAdblock = $settings ? (bool) ($settings->get('ads_block_adblock') ?? false) : false;
     $gateEnabled = !empty($config['ads']['adblock_gate']) && $blockAdblock;

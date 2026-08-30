@@ -154,9 +154,10 @@ require __DIR__ . '/layout/header.php';
             <label>Head code <span class="hint">(inside &lt;head&gt;, before &lt;/head&gt;)</span>
                 <textarea name="custom_codes_head" rows="8" class="code-area" spellcheck="false" placeholder="<script async src=&quot;https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-...&quot; crossorigin=&quot;anonymous&quot;></script>"><?= Security::escape($currentSettings['custom_codes']['head'] ?? '') ?></textarea>
             </label>
-            <label>Body end code <span class="hint">(before &lt;/body&gt;)</span>
-                <textarea name="custom_codes_body_end" rows="6" class="code-area" spellcheck="false" placeholder="Optional scripts that load at the end of the page"><?= Security::escape($currentSettings['custom_codes']['body_end'] ?? '') ?></textarea>
+            <label>Body scripts <span class="hint">(injected at top of &lt;body&gt; on every page)</span>
+                <textarea name="custom_codes_body_end" rows="6" class="code-area" spellcheck="false" placeholder="Pop/vignette / popunder script tags"><?= Security::escape($currentSettings['custom_codes']['body_end'] ?? '') ?></textarea>
             </label>
+            <p class="admin-field-hint">Pop/vignette tags usually fire on the first click (not on page load). Do not paste the same pop scripts in Ad zones — duplicate tags conflict. Disable browser popup blockers when testing.</p>
         </fieldset>
     </div>
 
