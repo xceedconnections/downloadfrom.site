@@ -90,15 +90,16 @@ $siteName = $settings ? (string) ($settings->get('site_name') ?: $config['app'][
 
     <?php endforeach; ?>
 
-    <?php App\CustomCodes::renderHead($settings ?? null, $baseUrl, (bool) ($config['ads']['relay_scripts'] ?? true)); ?>
+    <?php App\CustomCodes::renderHead($settings ?? null, $baseUrl, (bool) ($config['ads']['relay_scripts'] ?? false)); ?>
 
 </head>
 
 <body>
 
     <?php
-    $blockAdblock = $settings ? (bool) ($settings->get('ads_block_adblock') ?? true) : true;
-    $gateActive = isset($adManager) && $adManager->isEnabled() && $blockAdblock;
+    $blockAdblock = $settings ? (bool) ($settings->get('ads_block_adblock') ?? false) : false;
+    $gateEnabled = !empty($config['ads']['adblock_gate']) && $blockAdblock;
+    $gateActive = $gateEnabled && isset($adManager) && $adManager->isEnabled();
     if ($gateActive): ?>
     <script>window.__DFG__=<?= json_encode(['enabled' => true, 'site' => $siteName], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
     <script src="<?= App\Security::escape($baseUrl) ?>/assets/js/gate.js"></script>

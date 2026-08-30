@@ -190,7 +190,7 @@ $renderResultWireframe = static function (?string $serviceId, string $linksLabel
     <fieldset class="admin-fieldset ad-map-visual-fieldset">
         <legend>Assign ads on the layout</legend>
         <p class="admin-note">Each zone supports <strong>multiple ads</strong>. Assign ads per page (Home, Provider, Result) so they only show on that page type. Empty zones fall back: provider → service → page → global.</p>
-        <p class="admin-note">Ads created here are your own content. They load through a same-origin endpoint so they still appear on the ad-blocker notice screen. Third-party tags in Settings → Custom Codes may remain blocked until the visitor disables their ad blocker.</p>
+        <p class="admin-note">When enabled, visitors with an ad blocker see a full-screen notice. Keep this off if you use pop/vignette tags in Custom Codes — those tags must run on the main page without blocking.</p>
 
         <details class="ad-map-size-guide">
             <summary>Ad box size guide (recommended dimensions)</summary>

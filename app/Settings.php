@@ -75,7 +75,7 @@ class Settings
             'site_url' => 'http://localhost/downloadfrom',
             'analytics_enabled' => true,
             'maintenance_mode' => false,
-            'ads_block_adblock' => true,
+            'ads_block_adblock' => false,
             'admin_email' => 'admin@example.com',
             'footer_text' => 'Free online video URL tool for supported platforms. Retrieve public metadata and permitted viewing options.',
             'logo_path' => '',

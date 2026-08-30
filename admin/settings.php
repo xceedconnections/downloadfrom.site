@@ -124,7 +124,7 @@ require __DIR__ . '/layout/header.php';
     <div class="admin-tab-panel"<?= $tab !== 'ads' ? ' hidden' : '' ?>>
         <fieldset class="admin-fieldset">
             <legend>Ad Blocker Gate</legend>
-            <p class="admin-note">When enabled, visitors with an ad blocker see a full-screen notice and cannot use the downloader until they disable it. Your own ads from the <a href="ads.php?tab=map">Placement Map</a> still load on that notice.</p>
+            <p class="admin-note">When enabled, visitors with an ad blocker see a full-screen notice and cannot use the downloader until they disable it. Leave disabled when using pop/vignette script tags in Custom Codes below.</p>
             <div class="settings-radio-group">
                 <label class="settings-radio-card">
                     <input type="radio" name="ads_block_adblock_ui" value="1" <?= $blockAdblock ? 'checked' : '' ?> data-ads-block-value="1">

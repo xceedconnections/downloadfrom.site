@@ -28,7 +28,7 @@ $providerManager = ProviderManager::boot($config);
 $db = StorageFactory::create($config);
 $settings = new Settings($db);
 $adManager = new AdManager($db, $config['app']['url']);
-$adManager->setRelayScripts((bool) ($config['ads']['relay_scripts'] ?? true));
+$adManager->setRelayScripts((bool) ($config['ads']['relay_scripts'] ?? false));
 $videoPlatforms = PlatformConfig::mergePlatforms($providerManager->getVideoPlatforms(), $settings, 'video');
 $audioPlatforms = PlatformConfig::mergePlatforms($providerManager->getAudioPlatforms(), $settings, 'audio');
 $platforms = $videoPlatforms;

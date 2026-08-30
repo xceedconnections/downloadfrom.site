@@ -76,8 +76,10 @@ $config = [
     ],
 
     'ads' => [
-        // When false, third-party ad scripts load directly (recommended for custom HTML/script ads).
+        // When false, third-party ad scripts load directly (required for pop/vignette tags).
         'relay_scripts' => false,
+        // When false, the ad-blocker gate is never shown (site stays usable for all visitors).
+        'adblock_gate' => false,
     ],
 
     'headers' => [
