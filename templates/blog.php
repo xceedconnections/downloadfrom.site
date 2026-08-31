@@ -1,7 +1,18 @@
 <?php
+/** @var array<string, string> $article */
 $pageTitle = $article['title'];
-$pageDescription = $article['description'];
+$pageDescription = $article['meta_description'];
+$pageKeywords = $article['keywords'] ?? '';
+$ogImage = $article['og_image'] ?? '';
+$robotsMeta = $article['robots'] ?? 'index, follow';
 $canonicalPath = 'blog/' . ($blogSlug ?? $slug ?? '');
+$jsonLdScripts = [
+    $seo->jsonLdWebPage($article, $canonicalPath),
+    $seo->jsonLdBreadcrumb([
+        ['name' => 'Home', 'url' => $seo->canonical('')],
+        ['name' => $article['h1'], 'url' => $seo->canonical($canonicalPath)],
+    ]),
+];
 $adPageType = 'all';
 require __DIR__ . '/header.php';
 ?>

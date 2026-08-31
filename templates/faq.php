@@ -1,8 +1,12 @@
 <?php
 /** @var array<int, array{q: string, a: string}> $faq */
+/** @var array<string, mixed> $meta */
 
-$pageTitle = 'Frequently Asked Questions – ' . ($settings ? (string) ($settings->get('site_name') ?: $config['app']['name']) : $config['app']['name']);
-$pageDescription = 'Answers to common questions about our video and audio converter tools, supported platforms, and how the service works.';
+$pageTitle = $meta['title'];
+$pageDescription = $meta['meta_description'];
+$pageKeywords = $meta['keywords'] ?? '';
+$ogImage = $meta['og_image'] ?? '';
+$robotsMeta = $meta['robots'] ?? 'index, follow';
 $canonicalPath = App\ServiceConfig::PAGE_FAQ;
 $jsonLdScripts = [
     $seo->jsonLdFaq($faq),
@@ -17,8 +21,8 @@ require __DIR__ . '/header.php';
 
 <section class="hero hero-compact hero-minimal">
     <div class="container">
-        <h1>Frequently Asked Questions</h1>
-        <p class="hero-desc">Find answers about supported platforms, downloads, privacy, and how to use our tools.</p>
+        <h1><?= App\Security::escape($meta['h1']) ?></h1>
+        <p class="hero-desc"><?= App\Security::escape($meta['description']) ?></p>
     </div>
 </section>
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Storage;
 
 use App\Logger;
+use App\Repositories\PageSeoRepository;
 use PDO;
 use PDOException;
 use Throwable;
@@ -45,6 +46,8 @@ final class DatabaseInstaller
             self::ensureColumn($pdo, 'visitor_events', 'page_title', "VARCHAR(255) NOT NULL DEFAULT '' AFTER page_path");
             self::ensureColumn($pdo, 'visitor_events', 'referrer_source', "VARCHAR(128) NOT NULL DEFAULT '' AFTER referrer_url");
             self::ensureZoneAssignmentsMultiAd($pdo);
+            self::seedPageSeoIfEmpty($pdo);
+            self::upgradeProviderSeoDefaults($pdo);
 
             return true;
         } catch (Throwable $e) {
@@ -91,6 +94,86 @@ final class DatabaseInstaller
         }
 
         $pdo->exec('ALTER TABLE `' . str_replace('`', '``', $table) . '` ADD COLUMN `' . str_replace('`', '``', $column) . '` ' . $definition);
+    }
+
+    private static function seedPageSeoIfEmpty(PDO $pdo): void
+    {
+        $stmt = $pdo->prepare(
+            'SELECT COUNT(*) FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
+        );
+        $stmt->execute(['page_seo']);
+        if ((int) ($stmt->fetchColumn() ?: 0) === 0) {
+            return;
+        }
+
+        (new PageSeoRepository($pdo))->seedDefaultsIfEmpty();
+    }
+
+    private static function upgradeProviderSeoDefaults(PDO $pdo): void
+    {
+        $migration = 'seo_defaults_v1';
+        $check = $pdo->prepare('SELECT 1 FROM schema_migrations WHERE migration = ? LIMIT 1');
+        $check->execute([$migration]);
+        if ((bool) $check->fetchColumn()) {
+            return;
+        }
+
+        $videoSeo = [
+            'title' => 'YouTube Video Downloader – Free MP4 HD 1080p Online',
+            'h1' => 'YouTube Video Downloader',
+            'meta_description' => 'Download YouTube videos free in 1080p, 720p, 480p MP4. Paste any YouTube or Shorts URL — fast, no signup, works on all devices.',
+            'description' => 'Download YouTube videos in HD MP4 quality. Paste any public YouTube, youtu.be, or Shorts link and choose your preferred quality.',
+            'keywords' => 'youtube video downloader, download youtube video, youtube to mp4, youtube mp4 downloader, youtube hd download, youtube shorts downloader',
+        ];
+
+        $audioSeo = [
+            'title' => 'YouTube to MP3 Converter – Free YouTube MP3 Downloader',
+            'h1' => 'YouTube to MP3 Converter',
+            'meta_description' => 'Convert YouTube to MP3 free. Download YouTube audio in 128kbps, 192kbps or 320kbps — paste link, choose quality, save instantly.',
+            'description' => 'Download MP3 audio from YouTube videos. Paste any public YouTube, youtu.be, or Shorts link and pick your audio quality.',
+            'keywords' => 'youtube to mp3, youtube mp3 converter, youtube to mp3 downloader, convert youtube to mp3, youtube mp3 download free',
+        ];
+
+        $legacyVideoTitles = [
+            'YouTube Video Link Tool – Get YouTube Video Information',
+            'YouTube Video Downloader – Free MP4 HD 1080p Online',
+        ];
+
+        $stmt = $pdo->prepare(
+            'UPDATE video_providers SET title = ?, h1 = ?, meta_description = ?, description = ?, keywords = ?
+             WHERE provider_id = ? AND (title = ? OR title LIKE ? OR title = ?)'
+        );
+        $stmt->execute([
+            $videoSeo['title'],
+            $videoSeo['h1'],
+            $videoSeo['meta_description'],
+            $videoSeo['description'],
+            $videoSeo['keywords'],
+            'youtube',
+            $legacyVideoTitles[0],
+            '%Video Link Tool%',
+            $legacyVideoTitles[1],
+        ]);
+
+        $stmt = $pdo->prepare(
+            'UPDATE audio_providers SET title = ?, h1 = ?, meta_description = ?, description = ?, keywords = ?
+             WHERE provider_id = ? AND (title LIKE ? OR title LIKE ? OR h1 LIKE ?)'
+        );
+        $stmt->execute([
+            $audioSeo['title'],
+            $audioSeo['h1'],
+            $audioSeo['meta_description'],
+            $audioSeo['description'],
+            $audioSeo['keywords'],
+            'youtube',
+            '%MP3 Downloader%',
+            '%YouTube to MP3%',
+            '%MP3%',
+        ]);
+
+        $insert = $pdo->prepare('INSERT IGNORE INTO schema_migrations (migration) VALUES (?)');
+        $insert->execute([$migration]);
     }
 
     private static function ensureZoneAssignmentsMultiAd(PDO $pdo): void
@@ -164,6 +247,7 @@ final class DatabaseInstaller
             'audio_providers',
             'services',
             'ads',
+            'page_seo',
             'faq_items',
             'admin_users',
             'analytics_daily',

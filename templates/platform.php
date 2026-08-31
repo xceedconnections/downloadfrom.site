@@ -1,6 +1,9 @@
 <?php
 $pageTitle = $meta['title'];
 $pageDescription = $meta['meta_description'];
+$pageKeywords = $meta['keywords'] ?? '';
+$ogImage = $meta['og_image'] ?? '';
+$robotsMeta = $meta['robots'] ?? 'index, follow';
 $canonicalPath = $meta['slug'];
 $jsonLdScripts = [
     $seo->jsonLdWebPage($meta, $meta['slug']),

@@ -7,6 +7,8 @@ $config = require __DIR__ . '/app/bootstrap.php';
 use App\AdManager;
 use App\Analytics;
 use App\Cache;
+use App\Repositories\PageSeoRepository;
+use App\Storage\DatabaseConnection;
 use App\Storage\StorageFactory;
 use App\Logger;
 use App\PlatformConfig;
@@ -35,7 +37,8 @@ $audioPlatforms = PlatformConfig::mergePlatforms($providerManager->getAudioPlatf
 $platforms = $videoPlatforms;
 $servicesNav = ServiceConfig::buildNavigation($settings, $videoPlatforms, $audioPlatforms);
 $cache = new Cache($config);
-$seo = new Seo($config, $videoPlatforms, $audioPlatforms);
+$pageSeoRepo = new PageSeoRepository(DatabaseConnection::get());
+$seo = new Seo($config, $videoPlatforms, $audioPlatforms, $pageSeoRepo);
 $validator = new Validator($config);
 $rateLimiter = new RateLimiter($db, $config);
 $analytics = new Analytics($db, $config);

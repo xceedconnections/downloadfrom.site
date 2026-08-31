@@ -12,6 +12,10 @@
 
 /** @var string|null $robotsMeta */
 
+/** @var string|null $pageKeywords */
+
+/** @var string|null $ogImage */
+
 /** @var array|null $jsonLdScripts */
 
 
@@ -20,9 +24,13 @@ $pageTitle = $pageTitle ?? ($meta['title'] ?? $config['app']['name']);
 
 $pageDescription = $pageDescription ?? ($meta['meta_description'] ?? $meta['description'] ?? '');
 
+$pageKeywords = $pageKeywords ?? ($meta['keywords'] ?? '');
+
+$ogImage = $ogImage ?? ($meta['og_image'] ?? '');
+
 $canonicalPath = $canonicalPath ?? '';
 
-$robotsMeta = $robotsMeta ?? 'index, follow';
+$robotsMeta = $robotsMeta ?? ($meta['robots'] ?? 'index, follow');
 
 $jsonLdScripts = $jsonLdScripts ?? [];
 
@@ -53,6 +61,10 @@ $siteName = $settings ? (string) ($settings->get('site_name') ?: $config['app'][
 
     <meta name="description" content="<?= App\Security::escape($pageDescription) ?>">
 
+    <?php if ($pageKeywords !== ''): ?>
+    <meta name="keywords" content="<?= App\Security::escape($pageKeywords) ?>">
+    <?php endif; ?>
+
     <meta name="robots" content="<?= App\Security::escape($robotsMeta) ?>">
 
     <link rel="canonical" href="<?= App\Security::escape($seo->canonical($canonicalPath)) ?>">
@@ -66,6 +78,17 @@ $siteName = $settings ? (string) ($settings->get('site_name') ?: $config['app'][
     <meta property="og:url" content="<?= App\Security::escape($seo->canonical($canonicalPath)) ?>">
 
     <meta property="og:site_name" content="<?= App\Security::escape($siteName) ?>">
+
+    <?php
+    $resolvedOgImage = $ogImage;
+    if ($resolvedOgImage === '' && $logoUrl) {
+        $resolvedOgImage = $logoUrl;
+    }
+    if ($resolvedOgImage !== ''):
+    ?>
+    <meta property="og:image" content="<?= App\Security::escape($resolvedOgImage) ?>">
+    <meta name="twitter:image" content="<?= App\Security::escape($resolvedOgImage) ?>">
+    <?php endif; ?>
 
     <meta name="twitter:card" content="summary_large_image">
 

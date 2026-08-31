@@ -1,6 +1,6 @@
 <?php require __DIR__ . '/../header.php'; ?>
 <section class="section"><div class="container prose">
-<h1>DMCA / Copyright Policy</h1>
+<h1><?= App\Security::escape($staticH1 ?? 'DMCA / Copyright Policy') ?></h1>
 <p>We respect intellectual property rights. This service retrieves publicly available metadata and does not host video content.</p>
 <h2>Copyright Concerns</h2>
 <p>If you believe content accessed through our service infringes your copyright, please contact us with:</p>

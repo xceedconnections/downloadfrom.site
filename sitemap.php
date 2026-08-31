@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 $config = require __DIR__ . '/app/bootstrap.php';
 
+use App\Repositories\PageSeoRepository;
+use App\Storage\DatabaseConnection;
 use App\Storage\StorageFactory;
 use App\PlatformConfig;
 use App\Provider\ProviderManager;
@@ -15,7 +17,8 @@ $db = StorageFactory::create($config);
 $settings = new Settings($db);
 $videoPlatforms = PlatformConfig::mergePlatforms($providerManager->getVideoPlatforms(), $settings, 'video');
 $audioPlatforms = PlatformConfig::mergePlatforms($providerManager->getAudioPlatforms(), $settings, 'audio');
-$seo = new Seo($config, $videoPlatforms, $audioPlatforms);
+$pageSeoRepo = new PageSeoRepository(DatabaseConnection::get());
+$seo = new Seo($config, $videoPlatforms, $audioPlatforms, $pageSeoRepo);
 $urls = $seo->sitemapUrls();
 
 header('Content-Type: application/xml; charset=utf-8');

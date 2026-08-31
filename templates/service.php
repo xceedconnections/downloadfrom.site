@@ -1,16 +1,20 @@
 <?php
 /** @var array<string, mixed> $serviceMeta */
+/** @var array<string, mixed> $meta */
 /** @var array<int, array<string, mixed>> $servicePlatforms */
 /** @var string $serviceId */
 
-$pageTitle = $serviceMeta['title'];
-$pageDescription = $serviceMeta['description'];
-$canonicalPath = $serviceMeta['page_slug'];
+$pageTitle = $meta['title'];
+$pageDescription = $meta['meta_description'];
+$pageKeywords = $meta['keywords'] ?? '';
+$ogImage = $meta['og_image'] ?? '';
+$robotsMeta = $meta['robots'] ?? 'index, follow';
+$canonicalPath = $meta['page_slug'];
 $jsonLdScripts = [
-    $seo->jsonLdWebPage($serviceMeta, $serviceMeta['page_slug']),
+    $seo->jsonLdWebPage($meta, $meta['page_slug']),
     $seo->jsonLdBreadcrumb([
         ['name' => 'Home', 'url' => $seo->canonical('')],
-        ['name' => $serviceMeta['h1'], 'url' => $seo->canonical($serviceMeta['page_slug'])],
+        ['name' => $meta['h1'], 'url' => $seo->canonical($meta['page_slug'])],
     ]),
 ];
 $adPageType = 'platform';
@@ -28,9 +32,9 @@ require __DIR__ . '/header.php';
             <div class="hero-main">
                 <h1 class="service-page-title">
                     <?php $serviceId; $iconSize = 'lg'; require __DIR__ . '/partials/service-icon.php'; ?>
-                    <span><?= App\Security::escape($serviceMeta['h1']) ?></span>
+                    <span><?= App\Security::escape($meta['h1']) ?></span>
                 </h1>
-                <p class="hero-desc"><?= App\Security::escape($serviceMeta['description']) ?></p>
+                <p class="hero-desc"><?= App\Security::escape($meta['description']) ?></p>
                 <?php require __DIR__ . '/partials/url-form.php'; ?>
                 <?php $placement = 'platform_top'; require __DIR__ . '/partials/ad-zone.php'; ?>
             </div>
@@ -76,5 +80,13 @@ require __DIR__ . '/header.php';
 </section>
 
 <?php $placement = 'platform_bottom'; require __DIR__ . '/partials/ad-zone.php'; ?>
+
+<?php if (!empty($meta['seo_content'])): ?>
+<section class="section seo-content">
+    <div class="container prose">
+        <?= App\Security::sanitizeAdminHtml($meta['seo_content']) ?>
+    </div>
+</section>
+<?php endif; ?>
 
 <?php require __DIR__ . '/footer.php'; ?>

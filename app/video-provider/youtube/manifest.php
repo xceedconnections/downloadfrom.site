@@ -4,12 +4,12 @@ declare(strict_types=1);
 return [
     'name' => 'YouTube',
     'slug' => 'youtube-downloader',
-    'title' => 'YouTube Video Link Tool – Get YouTube Video Information',
-    'h1' => 'YouTube Video Link Tool',
-    'meta_description' => 'Paste a YouTube URL to download videos in multiple qualities (1080p, 720p, 480p, and more) or view metadata.',
-    'description' => 'Download YouTube videos in HD and other quality options. Paste any public YouTube, youtu.be, or Shorts link.',
+    'title' => 'YouTube Video Downloader – Free MP4 HD 1080p Online',
+    'h1' => 'YouTube Video Downloader',
+    'meta_description' => 'Download YouTube videos free in 1080p, 720p, 480p MP4. Paste any YouTube or Shorts URL — fast, no signup, works on all devices.',
+    'description' => 'Download YouTube videos in HD MP4 quality. Paste any public YouTube, youtu.be, or Shorts link and choose your preferred quality.',
     'icon' => 'youtube',
-    'keywords' => 'youtube video, youtube link, youtube metadata, youtube shorts',
+    'keywords' => 'youtube video downloader, download youtube video, youtube to mp4, youtube mp4 downloader, youtube hd download, youtube shorts downloader',
     'supported_domains' => array (
   0 => 'youtube.com',
   1 => 'youtu.be',

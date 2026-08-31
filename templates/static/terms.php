@@ -1,6 +1,6 @@
 <?php require __DIR__ . '/../header.php'; ?>
 <section class="section"><div class="container prose">
-<h1>Terms of Service</h1>
+<h1><?= App\Security::escape($staticH1 ?? 'Terms of Service') ?></h1>
 <p>Last updated: <?= date('F j, Y') ?></p>
 <h2>Acceptance</h2>
 <p>By using this service, you agree to these terms. If you do not agree, please do not use the service.</p>

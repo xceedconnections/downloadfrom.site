@@ -1,8 +1,15 @@
 <?php
 $pageTitle = $meta['title'];
-$pageDescription = $meta['description'];
+$pageDescription = $meta['meta_description'];
+$pageKeywords = $meta['keywords'] ?? '';
+$ogImage = $meta['og_image'] ?? '';
+$robotsMeta = $meta['robots'] ?? 'index, follow';
 $canonicalPath = '';
-$jsonLdScripts = [];
+$siteNameForLd = $settings ? (string) ($settings->get('site_name') ?: $config['app']['name']) : $config['app']['name'];
+$jsonLdScripts = [
+    $seo->jsonLdWebSite($siteNameForLd),
+    $seo->jsonLdWebPage($meta, ''),
+];
 $adPageType = 'home';
 require __DIR__ . '/header.php';
 ?>
@@ -116,9 +123,13 @@ require __DIR__ . '/header.php';
 
 <section class="section seo-content">
     <div class="container prose">
+        <?php if (!empty($meta['seo_content'])): ?>
+        <?= App\Security::sanitizeAdminHtml($meta['seo_content']) ?>
+        <?php else: ?>
         <h2>Online Video URL Tool</h2>
         <p>Our free online video URL utility helps you quickly access public information about videos from supported platforms. <?= App\Security::escape(App\PlatformConfig::platformExamplesBlurb($platforms)) ?></p>
         <p>We extract direct download links where possible and retrieve video titles, thumbnails, author information, and multiple quality options.</p>
+        <?php endif; ?>
     </div>
 </section>
 

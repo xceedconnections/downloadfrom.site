@@ -125,6 +125,23 @@ CREATE TABLE IF NOT EXISTS ad_zone_assignments (
     CONSTRAINT fk_ad_zone_assignments_ad FOREIGN KEY (ad_id) REFERENCES ads (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS page_seo (
+    page_key VARCHAR(128) NOT NULL,
+    page_label VARCHAR(255) NOT NULL DEFAULT '',
+    page_type VARCHAR(32) NOT NULL DEFAULT 'core',
+    title VARCHAR(512) NOT NULL DEFAULT '',
+    h1 VARCHAR(255) NOT NULL DEFAULT '',
+    meta_description TEXT,
+    description TEXT,
+    keywords TEXT,
+    og_image VARCHAR(1024) NOT NULL DEFAULT '',
+    robots VARCHAR(64) NOT NULL DEFAULT 'index, follow',
+    seo_content MEDIUMTEXT,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (page_key),
+    KEY idx_page_seo_type (page_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS faq_items (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     section VARCHAR(64) NOT NULL DEFAULT 'home',

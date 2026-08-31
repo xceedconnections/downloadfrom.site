@@ -1,6 +1,6 @@
 <?php require __DIR__ . '/../header.php'; ?>
 <section class="section"><div class="container prose">
-<h1>Privacy Policy</h1>
+<h1><?= App\Security::escape($staticH1 ?? 'Privacy Policy') ?></h1>
 <p>Last updated: <?= date('F j, Y') ?></p>
 <h2>Information We Collect</h2>
 <p>We collect minimal anonymous usage data including request counts and platform types. We do not store complete IP addresses unless configured for rate limiting, in which case IPs are hashed.</p>

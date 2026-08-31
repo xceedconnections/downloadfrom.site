@@ -5,11 +5,11 @@ declare(strict_types=1);
 return array (
   'name' => 'YouTube',
   'slug' => 'youtube-mp3',
-  'title' => 'YouTube to MP3 Downloader – Convert YouTube Videos to MP3',
-  'h1' => 'YouTube to MP3 Downloader',
-  'meta_description' => 'Paste a YouTube URL to download MP3 audio. Free YouTube to MP3 converter with multiple quality options.',
-  'description' => 'Download MP3 audio from YouTube videos. Paste any public YouTube, youtu.be, or Shorts link.',
-  'keywords' => 'youtube mp3, youtube to mp3, youtube audio download',
+  'title' => 'YouTube to MP3 Converter – Free YouTube MP3 Downloader',
+  'h1' => 'YouTube to MP3 Converter',
+  'meta_description' => 'Convert YouTube to MP3 free. Download YouTube audio in 128kbps, 192kbps or 320kbps — paste link, choose quality, save instantly.',
+  'description' => 'Download MP3 audio from YouTube videos. Paste any public YouTube, youtu.be, or Shorts link and pick your audio quality.',
+  'keywords' => 'youtube to mp3, youtube mp3 converter, youtube to mp3 downloader, convert youtube to mp3, youtube mp3 download free',
   'supported_domains' => 
   array (
     0 => 'youtube.com',

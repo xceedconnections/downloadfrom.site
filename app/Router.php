@@ -164,8 +164,15 @@ class Router
 
     private function renderFaq(): void
     {
-        $this->trackPageView('FAQ');
+        $faqMeta = $this->seo->resolvePageMeta(ServiceConfig::PAGE_FAQ, [
+            'title' => 'FAQ',
+            'h1' => 'Frequently Asked Questions',
+            'meta_description' => 'Answers to common questions about our video and audio converter tools.',
+            'description' => 'Find answers about supported platforms, downloads, privacy, and how to use our tools.',
+        ]);
+        $this->trackPageView($faqMeta['title']);
         extract($this->templateVars());
+        $meta = $faqMeta;
         $faq = PlatformConfig::applyDynamicFaqAnswers($this->loadFaq('home'), array_merge($this->videoPlatforms, $this->audioPlatforms));
         require dirname(__DIR__) . '/templates/faq.php';
     }
@@ -192,9 +199,10 @@ class Router
             return;
         }
 
-        $this->trackPageView($serviceId === ServiceConfig::SERVICE_AUDIO ? 'Audio Converter' : 'Video Converter');
-        extract($this->templateVars());
         $serviceMeta = $this->seo->serviceMeta($serviceId, $serviceNav);
+        $this->trackPageView($serviceMeta['title']);
+        extract($this->templateVars());
+        $meta = $serviceMeta;
         $servicePlatforms = $serviceNav['platforms'];
         $prefillUrl = Security::escape($_GET['url'] ?? '');
         require dirname(__DIR__) . '/templates/service.php';
@@ -202,9 +210,9 @@ class Router
 
     private function renderHome(): void
     {
-        $this->trackPageView('Homepage');
-        extract($this->templateVars());
         $meta = $this->seo->homepageMeta();
+        $this->trackPageView($meta['title']);
+        extract($this->templateVars());
         $prefillUrl = Security::escape($_GET['url'] ?? '');
         $showServiceSelect = true;
         $selectedService = ServiceConfig::SERVICE_ALL;
@@ -420,19 +428,22 @@ class Router
         extract($this->templateVars());
         $articles = [
             'how-to-save-tiktok-videos' => [
-                'title' => 'How to Save TikTok Videos – Official Methods',
+                'title' => 'How to Download TikTok Videos – Free Online Guide',
                 'h1' => 'How to Save TikTok Videos',
-                'description' => 'Learn about official ways to save TikTok videos and how our tool helps you retrieve public video information.',
+                'description' => 'Learn how to download TikTok videos without watermark. Free guide to saving TikTok clips as MP4 on phone and desktop.',
+                'keywords' => 'how to download tiktok videos, save tiktok video, tiktok mp4 download',
             ],
             'how-to-save-youtube-videos' => [
-                'title' => 'How to Save YouTube Videos – Official Options',
-                'h1' => 'How to Save YouTube Videos',
-                'description' => 'Discover YouTube Premium offline viewing and how to use our tool for public video metadata.',
+                'title' => 'How to Download YouTube Videos – Free MP4 Guide 2026',
+                'h1' => 'How to Download YouTube Videos',
+                'description' => 'Learn how to download YouTube videos in MP4 free. Step-by-step guide to saving YouTube, Shorts, and music videos online.',
+                'keywords' => 'how to download youtube videos, save youtube video, youtube mp4 download guide',
             ],
             'how-to-save-vimeo-videos' => [
-                'title' => 'How to Save Vimeo Videos – What You Need to Know',
+                'title' => 'How to Download Vimeo Videos – Free Online Guide',
                 'h1' => 'How to Save Vimeo Videos',
-                'description' => 'Understand Vimeo download options and how our tool retrieves public video information.',
+                'description' => 'Learn how to download Vimeo videos when permitted. Free guide to saving Vimeo clips as MP4 online.',
+                'keywords' => 'how to download vimeo videos, save vimeo video, vimeo mp4 download',
             ],
         ];
 
@@ -442,18 +453,28 @@ class Router
             return;
         }
 
-        $this->trackPageView('Blog: ' . ($articles[$slug]['h1'] ?? 'Article'));
-        $article = $articles[$slug];
+        $article = $this->seo->resolvePageMeta('blog/' . $slug, $articles[$slug]);
+        $this->trackPageView($article['title']);
+        extract($this->templateVars());
         $blogSlug = $slug;
         require dirname(__DIR__) . '/templates/blog.php';
     }
 
     private function renderStatic(string $title, string $page): void
     {
-        $this->trackPageView($title);
+        $meta = $this->seo->resolvePageMeta($page, [
+            'title' => $title,
+            'h1' => $title,
+            'meta_description' => $title,
+            'description' => $title,
+        ]);
+        $this->trackPageView($meta['title']);
         extract($this->templateVars());
-        $pageTitle = $title;
-        $pageDescription = $title;
+        $pageTitle = $meta['title'];
+        $pageDescription = $meta['meta_description'];
+        $pageKeywords = $meta['keywords'];
+        $robotsMeta = $meta['robots'];
+        $staticH1 = $meta['h1'];
         require dirname(__DIR__) . '/templates/static/' . $page . '.php';
     }
 
